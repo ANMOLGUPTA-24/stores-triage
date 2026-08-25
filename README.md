@@ -28,8 +28,10 @@ adjudicates between them. Differential diagnosis, not a work queue.
 
 ## Status
 
-Day 0 of 6. Working: Postgres schema + synthetic seed for both demo runs.
-Not built yet: the MCP server, the agent, the sandbox analysis, the console.
+Day 1 of 6. Working: Postgres schema + synthetic seed, the `stores-mcp` tool
+server, and the adjudication logic (20 unit tests, both runs covered). Both
+demo runs already reach the correct decision end to end over MCP.
+Not built yet: the agent instructions, the sandbox analysis, the console.
 This section stays honest as the project moves.
 
 ## The two runs
@@ -71,9 +73,46 @@ docker compose exec -T postgres psql -U stores -d stores \
   -c "SELECT part_no, stock_on_hand, reorder_level FROM parts WHERE stock_on_hand < reorder_level;"
 ```
 
+Then start the tool server:
+
+```bash
+python -m venv .venv && .venv/bin/pip install -r requirements.txt
+set -a; . ./.env; set +a
+.venv/bin/python -m stores_triage.server     # http://localhost:8081/mcp
+```
+
+Register that URL in TrueForge under Settings -> Connectors, with a header of
+`Authorization: Bearer $STORES_MCP_TOKEN`.
+
 You will also need, configured inside TrueForge (Settings):
 - a **model provider** key,
 - a **Daytona** API key for the sandbox.
+
+Run the tests:
+
+```bash
+.venv/bin/python -m pytest tests/ -q
+```
+
+## Tools
+
+| Tool | Kind | What it is for |
+|---|---|---|
+| `list_alerts` | read | Parts below reorder level |
+| `get_part` | read | Stock, reorder level, reorder quantity |
+| `get_consumption_log` | read | Daily issue rows, for fitting a draw rate in the sandbox |
+| `list_open_indents` | read | Evidence for `duplicate_indent` |
+| `list_consignments` | read | Evidence for `inbound_delay`; status distinguishes real cover from unconfirmed |
+| `get_vendor_lead_times` | read | Promised vs actual history, for the lead-time distribution |
+| `adjudicate` | read | Deterministic. Four verdicts in, one recommendation out |
+| `draft_indent` | read | The exact payload, so the dossier shows the real thing. Writes nothing |
+| `raise_indent` | **destructive** | Irreversible. Gated |
+| `send_vendor_mail` | **destructive** | Irreversible. Gated |
+| `log_run` | write | Records the outcome, including `no_action` |
+| `list_run_log` | read | Previous runs |
+
+Write tools carry `destructiveHint` so the harness knows to hold them for a
+human; read tools carry `readOnlyHint` so investigation never stops to ask.
 
 ## Qodo Code Review Evidence
 
