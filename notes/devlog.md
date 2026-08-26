@@ -60,3 +60,14 @@ Two lines per session: what was built, what broke.
   undefined".
 - Still blocked: no sandbox (Daytona key), so skills are off and the maths beat
   cannot run yet.
+
+## 2026-08-26 (day 3) — designing for a free tier
+- Constraint: no budget. Gemini free tier is 5 requests/minute per model, and a
+  full run is root + 4 subagents, so round trips are the scarce resource.
+- Changes: preload all 12 tool schemas (one prompt instead of a discovery round
+  trip per subagent); iterationLimit 40 so a runaway loop cannot eat the minute
+  budget the retry needs; skill now names the one or two tools each hypothesis
+  needs so subagents stop exploring.
+- Root on gemini-3-1-pro-preview, subagents on 3-6-flash: separate quota buckets,
+  roughly double the throughput for nothing.
+- Daytona dropped. Local sandbox via a narrow AppArmor profile for bwrap instead.

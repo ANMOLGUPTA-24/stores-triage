@@ -49,9 +49,13 @@ that the shortage is *not* real, and they do not coordinate.
 | `duplicate_indent` | Someone already raised this indent and it is still open |
 | `bom_change` | The part is superseded and the works is moving off it |
 
-Give each subagent the part number, tell it which hypothesis it owns, and tell
-it to gather evidence with the read-only `stores` tools. Each must return
-exactly this shape and nothing else:
+Give each subagent the part number, tell it which hypothesis it owns, **and name
+the one or two tools it needs** — `duplicate_indent` needs `list_open_indents`,
+`inbound_delay` needs `list_consignments`, `consumption_spike` needs the analysis
+output, `bom_change` needs `get_part`. A subagent that goes exploring costs a
+round trip for nothing and, on a rate-limited key, delays every other one.
+
+Each must return exactly this shape and nothing else:
 
 ```json
 {

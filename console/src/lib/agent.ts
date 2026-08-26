@@ -7,9 +7,20 @@
  */
 
 export interface StoresAgentOptions {
-  /** Model FQN as configured in TrueForge, e.g. "openai/gpt-5.2". */
+  /** Model FQN as configured in TrueForge, e.g. "google-gemini/gemini-3-6-flash". */
   model: string
 }
+
+/**
+ * Free-tier quota is the binding constraint, not cost per token.
+ *
+ * Gemini's free tier allows 5 requests/minute per model, and a full run is the
+ * root agent plus four subagents - comfortably past that. Each model has its
+ * own bucket, so putting the root on one and letting subagents inherit the
+ * other roughly doubles the throughput available for nothing.
+ */
+export const ROOT_MODEL = 'google-gemini/gemini-3-1-pro-preview'
+export const SUBAGENT_MODEL = 'google-gemini/gemini-3-6-flash'
 
 /**
  * Kept short on purpose. Restating the whole procedure here would give the
@@ -52,15 +63,20 @@ export function storesTriageAgent({ model }: StoresAgentOptions) {
       {
         name: 'stores',
         requireApprovalForTools: [...GATED_TOOLS],
-        // The alert and the part record are needed on every single run, so
-        // paying for their schemas upfront costs nothing and saves a round trip.
-        preloadTools: ['list_alerts', 'get_part'],
+        // Every tool here gets used on a normal run and there are only twelve,
+        // so loading the schemas upfront costs one small prompt instead of a
+        // discovery round trip per subagent. On a 5-requests-per-minute free
+        // tier, round trips are the scarce resource, not tokens.
+        preload: true,
       },
     ],
     skills: [{ name: 'stores-triage' }],
     config: {
       sandbox: { enabled: true, fileDownloads: true },
       dynamicSubAgents: { enabled: true },
+      // A runaway loop on a 5 RPM quota does not just waste money, it burns the
+      // minute budget that the next attempt needs. Fail fast instead.
+      iterationLimit: 40,
     },
   }
 }
