@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import os
 from datetime import date, datetime
+from uuid import uuid4
 from typing import Any
 
 from dotenv import load_dotenv
@@ -257,14 +258,23 @@ def send_vendor_mail(part_no: str, indent_no: str, qty: int, needed_by: str) -> 
 
 
 @mcp.tool(annotations={"readOnlyHint": False, "destructiveHint": False})
-def log_run(session_id: str, part_no: str, outcome: str, detail: dict[str, Any]) -> dict[str, Any]:
+def log_run(
+    part_no: str,
+    outcome: str,
+    detail: dict[str, Any],
+    session_id: str | None = None,
+) -> dict[str, Any]:
     """Record what this run decided.
 
     outcome is 'indent_raised', 'no_action' or 'rejected_by_operator'. A run
     that correctly decides to do nothing is a result, not an absence, and gets
     logged like any other.
+
+    session_id is optional. The agent has no reliable way to learn its own
+    session id, and a required argument it cannot supply would make it invent
+    one - so the server allocates a stable id instead of the model guessing.
     """
-    return db.insert_run_log(session_id, part_no, outcome, detail)
+    return db.insert_run_log(session_id or f"run-{uuid4().hex[:12]}", part_no, outcome, detail)
 
 
 @mcp.tool(annotations=READ_ONLY)

@@ -25,9 +25,16 @@ or hosted (Postgres + Redis, Docker Compose / Helm).
   events and rendered in our own card. The harness gives us the *pause*; §0a is
   our contribution on top of it.
 
-## Sandbox — Daytona only, external API key
-- Daytona is the only provider today. Requires a Daytona API key in Settings.
-- No local/offline sandbox option documented.
+## Sandbox — Daytona *or* a local fallback the docs do not mention
+- CORRECTION (26 Aug, from running v0.1.4): there is a **local sandbox fallback**
+  (SRT) that needs host binaries `bwrap`, `socat`, `rg`. With those present it
+  runs sandboxed code on this machine and **no Daytona key is needed**.
+  The startup log says so:
+      warn Local sandbox fallback is unavailable
+           SRT host dependencies missing (linux: bwrap, socat, rg)
+- `PUT /api/v1/settings/sandbox-providers` only accepts `type: "daytona"`, so the
+  local fallback is not configurable - it activates when the host deps exist.
+- Daytona remains the documented provider and needs an API key in Settings.
 - Sandbox is a tool, provisioned on demand; code/files/shell. Secrets stay in
   the harness, not the sandbox.
 - Files come back via `GET` download-a-file-from-the-turn-sandbox -> chart retrieval.
@@ -49,6 +56,47 @@ or hosted (Postgres + Redis, Docker Compose / Helm).
   (`client.sessions.createTurnStream`) in our own React app, rendering the four
   surfaces off the event stream keyed by `threadId`.
 
+## Verified against a running harness (26 Aug, v0.1.4)
+- Standalone: `npx @truefoundry/trueforge`, SQLite at
+  ~/.local/share/trueforge/db, serves on http://localhost:8790, auth disabled.
+- Registration is by API, not only the UI:
+  - `POST /api/v1/settings/mcp-servers` with
+    `{manifest:{type:"remote",name,url,description,auth:{type:"header",headers}}}`
+  - `POST /api/v1/settings/skills` with
+    `{manifest:{type:"git",name,url,path,ref,description}}`
+  - `GET /api/v1/mcp-servers/{name}/tools` lists what the harness can actually see.
+- `GET /api/v1/capabilities` reports `skill.enabled:false` while the sandbox is
+  unconfigured - **skills require a sandbox**, so socat gates the skill too.
+
 ## Still unverified
-- Daytona free-tier limits.
+- Daytona free-tier limits (may not matter now the local fallback exists).
 - A remote HTTP MCP for Gmail/Slack that supports **sending** (not just reading).
+
+## Context cost, measured (26 Aug, v0.1.4)
+
+A bare TrueForge agent — no MCP servers, no skills — sends **67,358 tokens** on
+its first request. Measured by letting Groq's 413 report the size:
+
+| configuration | first request |
+|---|---|
+| preload all 12 stores tools + skill | 69,658 |
+| deferred tools + skill | 68,887 |
+| deferred tools, no skill | 68,681 |
+| no MCP, no skill | 67,358 |
+| everything off (sandbox, subagents, genUI, askUser) | 65,809 |
+
+Our whole contribution is ~2.3k. The harness's own system prompt and built-in
+tools are ~66k and are **not configurable** — every feature toggle together
+moves it by ~1.5k.
+
+Consequence for free tiers: the binding constraint is tokens-per-minute, and it
+is not something an agent author can tune.
+
+## Free-tier viability (26 Aug)
+
+| provider / model | limit | verdict |
+|---|---|---|
+| Groq `openai/gpt-oss-120b` | 8,000 TPM (`on_demand`) | **unusable** — one request is 8x the per-minute ceiling, pacing cannot help |
+| Groq `llama-3.3-70b-versatile` | Enterprise / contact sales | 404 on a free account |
+| Gemini `gemini-3.6-flash` | 250K TPM, **20 requests/day** | usable at ~1 run/day if the run fits in <20 calls |
+| Gemini `gemini-3.1-pro-preview` | `limit: 0` | no free tier at all |

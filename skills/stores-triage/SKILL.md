@@ -26,16 +26,50 @@ without checking.
 
 ### 1. Pull the record
 
-Call, in this order:
+You were given the part number, so skip `list_alerts`. Two steps, because the
+third call needs a value the first one returns:
 
-- `list_alerts` if you were not given a specific part
-- `get_part(part_no)`
-- `get_consumption_log(part_no, days=120)`
-- `list_open_indents(part_no)`
-- `list_consignments(part_no)`
-- `get_vendor_lead_times(vendor_code)` using the part's `vendor_code`
+1. `get_part(part_no)` and `get_consumption_log(part_no, days=120)` together
+2. `get_vendor_lead_times(vendor_code)` using the `vendor_code` from `get_part`
 
-### 2. Send out four hypotheses, in parallel
+Do not fetch indents or consignments yourself. Those are the subagents' evidence
+and fetching them twice wastes a call each.
+
+### 2. Do the arithmetic in the sandbox
+
+Write the record you pulled to a JSON file and run the bundled script:
+
+```bash
+pip install matplotlib --quiet     # only needed for the chart
+python /opt/tfy/skills/stores-triage/scripts/analyse.py input.json --chart chart.png
+```
+
+`input.json` is:
+
+```json
+{
+  "part": { ...the get_part row... },
+  "consumption_rows": [ ...the "rows" array from get_consumption_log... ],
+  "window_days": 120,
+  "lead_time_rows": [ ...rows from get_vendor_lead_times... ]
+}
+```
+
+`window_days` must be the same number you passed to `get_consumption_log`. The
+log only contains days something moved, so without the window the script cannot
+tell a quiet fortnight from no history, and the draw rate comes out too high.
+
+It prints a JSON block containing `projection` (the numbers) and `evidence`
+(what they were computed from), and writes the chart. Use those numbers
+verbatim.
+
+**This runs before the subagents on purpose.** Two of them need its output:
+`consumption_spike` needs `despiked_mean_daily`, and `inbound_delay` has to know
+`days_to_stockout_p10` to judge whether an ETA lands in time. Dispatching them
+first would force both to guess, and a guessed verdict wearing the appearance of
+evidence is the exact failure this system exists to prevent.
+
+### 3. Send out four hypotheses, in parallel
 
 Create **exactly four** subagents, one per competing explanation. Do not create
 three, do not create five, and do not do the work yourself and skip this step.
@@ -49,9 +83,22 @@ that the shortage is *not* real, and they do not coordinate.
 | `duplicate_indent` | Someone already raised this indent and it is still open |
 | `bom_change` | The part is superseded and the works is moving off it |
 
-Give each subagent the part number, tell it which hypothesis it owns, and tell
-it to gather evidence with the read-only `stores` tools. Each must return
-exactly this shape and nothing else:
+Give each subagent the part number, the `projection` block from step 2, tell it
+which hypothesis it owns, **and name the single tool it needs**:
+
+| hypothesis | its one tool |
+|---|---|
+| `duplicate_indent` | `list_open_indents` |
+| `inbound_delay` | `list_consignments` |
+| `consumption_spike` | none — you already have `despiked_mean_daily` from step 2 |
+| `bom_change` | `get_part` |
+
+**Each subagent makes exactly one tool call and then returns its verdict.** Not
+two, not a follow-up to check something. If the one call does not settle it, the
+verdict is `inconclusive` and the adjudicator handles it. Model quota is finite
+and a subagent that goes exploring spends the budget the rest of the run needs.
+
+Each must return exactly this shape and nothing else:
 
 ```json
 {
@@ -83,30 +130,6 @@ Required `evidence` shapes:
 - `consumption_spike` — `{"despiked_daily_draw": <number from the analysis script>}`
 - `bom_change` — `{"superseded_by": "PART-NO" or null}`
 
-### 3. Do the arithmetic in the sandbox
-
-Write the record you pulled to a JSON file and run the bundled script:
-
-```bash
-pip install matplotlib --quiet     # only needed for the chart
-python /opt/tfy/skills/stores-triage/scripts/analyse.py input.json --chart chart.png
-```
-
-`input.json` is:
-
-```json
-{
-  "part": { ...the get_part row... },
-  "consumption_rows": [ ...rows from get_consumption_log... ],
-  "lead_time_rows": [ ...rows from get_vendor_lead_times... ]
-}
-```
-
-It prints a JSON block containing `projection` (the numbers) and `evidence`
-(what they were computed from), and writes the chart. Use those numbers
-verbatim. If it reports a spike, feed `despiked_mean_daily` to the
-`consumption_spike` subagent's evidence.
-
 ### 4. Adjudicate
 
 Call `adjudicate(part_no, projection, verdicts)` with the projection block from
@@ -120,7 +143,8 @@ re-check the evidence, do not argue with the result.
 
 Do not ask for approval. There is nothing to approve, because nothing should
 happen. Say so plainly, show the evidence that settles it, then call
-`log_run(session_id, part_no, "no_action", detail)`.
+`log_run(part_no, "no_action", detail)`. You do not need a session id; the
+server allocates one.
 
 A run that correctly decides to do nothing is a result, not a failure. Present
 it with the same confidence as an indent.
@@ -138,16 +162,41 @@ must contain all of:
    mail body, not a description of them
 5. The `what_would_change_my_mind` line from `adjudicate`, verbatim
 
-Then call `raise_indent`. The harness will hold it for a human. **Never call
-`raise_indent` or `send_vendor_mail` before a human has approved.** These write
-to the register and send real mail; they cannot be undone.
+Then call `raise_indent`. **The call itself is what creates the approval
+request** — the harness intercepts it, holds it, and shows the operator the
+pending action. Nothing is written while it is held.
 
-Once approved: `raise_indent`, then `send_vendor_mail` with the indent number it
-returned, then `log_run(..., "indent_raised", detail)`.
+Do not wait for approval before calling it; there is nothing for the operator to
+approve until you do. And do not call it twice: when the operator approves, the
+harness resumes the call you already made. A second call would raise a second
+indent.
+
+`send_vendor_mail` is gated separately, so approving the indent does not
+pre-approve the mail. Expect a second pause, and pass the `indent_no` that
+`raise_indent` returned along with **the same `needed_by` date that appeared in
+the dossier** — the operator approved that exact wording, and the outgoing mail
+is composed from what you pass here.
+
+Then `log_run(part_no, "indent_raised", detail)`.
 
 If the human rejects, do not retry, do not argue and do not look for another
 route to the same action. Record it with
-`log_run(..., "rejected_by_operator", detail)` and stop.
+`log_run(part_no, "rejected_by_operator", detail)` and stop.
+
+## Economy
+
+The whole run must fit in under twenty model calls. Budget:
+
+- 2 to read the record (part + log, then vendor lead times)
+- 2 for the sandbox: write `input.json`, run `analyse.py`
+- 1 to dispatch all four subagents at once
+- 4 to 8 for the subagents themselves
+- 1 for `adjudicate`
+- 1 for `draft_indent`
+- 1 to present the dossier
+
+Never re-read something you already have. Never call a tool to check a number
+the analysis already returned. If you catch yourself confirming, stop.
 
 ## Tone
 

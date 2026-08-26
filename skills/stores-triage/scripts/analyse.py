@@ -17,6 +17,7 @@ from __future__ import annotations
 import argparse
 import json
 import sys
+from datetime import date, timedelta
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
@@ -29,7 +30,7 @@ from projection import (  # noqa: E402  (path set above)
 )
 
 
-def draw_chart(path: str, *, part_no: str, rows, stock_on_hand: int, stockout, lead) -> bool:
+def draw_chart(path: str, *, part_no: str, mean_daily: float, stock_on_hand: int, stockout, lead) -> bool:
     """Stock burn-down with the uncertainty band and the lead-time marker.
 
     Returns False if matplotlib is not installed - the numbers still stand.
@@ -44,8 +45,11 @@ def draw_chart(path: str, *, part_no: str, rows, stock_on_hand: int, stockout, l
 
     horizon = max(stockout.days_p90, lead.p80) * 1.12
     days = [d * horizon / 200 for d in range(201)]
-    mean_rate = stock_on_hand / stockout.days_p50
-    top = stock_on_hand * 1.12
+    # Zero stock is the most urgent alert there is, and it gives a zero median.
+    # Deriving the rate by division here would make that the one case that
+    # crashes instead of charting.
+    mean_rate = mean_daily
+    top = max(stock_on_hand, 1) * 1.12
 
     fig, ax = plt.subplots(figsize=(9, 4.2))
 
@@ -97,7 +101,15 @@ def main() -> int:
 
     payload = json.loads(Path(args.input).read_text())
     part = payload["part"]
-    draw = fit_draw_rate(payload["consumption_rows"])
+    # The rows only cover days something moved. Reconstruct the window that was
+    # actually queried so quiet days at either edge still count as zero draw.
+    window_days = payload.get("window_days")
+    today = date.today()
+    draw = fit_draw_rate(
+        payload["consumption_rows"],
+        window_start=today - timedelta(days=window_days - 1) if window_days else None,
+        window_end=today if window_days else None,
+    )
     lead = fit_lead_time(payload["lead_time_rows"])
     stockout = project_stockout(part["stock_on_hand"], draw)
 
@@ -115,7 +127,7 @@ def main() -> int:
         charted = draw_chart(
             args.chart,
             part_no=part["part_no"],
-            rows=payload["consumption_rows"],
+            mean_daily=draw.mean_daily,
             stock_on_hand=part["stock_on_hand"],
             stockout=stockout,
             lead=lead,
