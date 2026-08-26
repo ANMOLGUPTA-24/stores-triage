@@ -26,14 +26,15 @@ without checking.
 
 ### 1. Pull the record
 
-Call, in this order:
+You were given the part number, so skip `list_alerts`. Make these three calls
+**in one batch**, then stop reading:
 
-- `list_alerts` if you were not given a specific part
 - `get_part(part_no)`
 - `get_consumption_log(part_no, days=120)`
-- `list_open_indents(part_no)`
-- `list_consignments(part_no)`
-- `get_vendor_lead_times(vendor_code)` using the part's `vendor_code`
+- `get_vendor_lead_times(vendor_code)` — use the `vendor_code` from `get_part`
+
+Do not fetch indents or consignments yourself. Those are the subagents' evidence
+and fetching them twice wastes a call each.
 
 ### 2. Send out four hypotheses, in parallel
 
@@ -50,10 +51,19 @@ that the shortage is *not* real, and they do not coordinate.
 | `bom_change` | The part is superseded and the works is moving off it |
 
 Give each subagent the part number, tell it which hypothesis it owns, **and name
-the one or two tools it needs** — `duplicate_indent` needs `list_open_indents`,
-`inbound_delay` needs `list_consignments`, `consumption_spike` needs the analysis
-output, `bom_change` needs `get_part`. A subagent that goes exploring costs a
-round trip for nothing and, on a rate-limited key, delays every other one.
+the single tool it needs**:
+
+| hypothesis | its one tool |
+|---|---|
+| `duplicate_indent` | `list_open_indents` |
+| `inbound_delay` | `list_consignments` |
+| `consumption_spike` | none — use the `despiked_mean_daily` you already have |
+| `bom_change` | `get_part` |
+
+**Each subagent makes exactly one tool call and then returns its verdict.** Not
+two, not a follow-up to check something. If the one call does not settle it, the
+verdict is `inconclusive` and the adjudicator handles it. Model quota is finite
+and a subagent that goes exploring spends the budget the rest of the run needs.
 
 Each must return exactly this shape and nothing else:
 
@@ -152,6 +162,21 @@ returned, then `log_run(..., "indent_raised", detail)`.
 If the human rejects, do not retry, do not argue and do not look for another
 route to the same action. Record it with
 `log_run(..., "rejected_by_operator", detail)` and stop.
+
+## Economy
+
+The whole run must fit in under twenty model calls. Budget:
+
+- 1 to read the record (three tools in one batch)
+- 1 to dispatch all four subagents at once
+- 4 to 8 for the subagents themselves
+- 2 for the sandbox: write `input.json`, run `analyse.py`
+- 1 for `adjudicate`
+- 1 for `draft_indent`
+- 1 to present the dossier
+
+Never re-read something you already have. Never call a tool to check a number
+the analysis already returned. If you catch yourself confirming, stop.
 
 ## Tone
 
