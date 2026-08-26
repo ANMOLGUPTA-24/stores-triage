@@ -49,3 +49,14 @@ Two lines per session: what was built, what broke.
 - Found: TrueForge has an undocumented LOCAL sandbox fallback needing bwrap +
   socat + rg. Only socat is missing here, so Daytona is off the critical path.
 - Blocked on: socat (needs sudo), and a model provider key.
+
+## 2026-08-26 (day 3, evening) — first live run
+- Gemini key in; harness sees gemini-3-1-pro-preview and gemini-3-6-flash.
+- Smoke test against the real harness + real Postgres: model called list_alerts,
+  get_part, list_consignments, then raise_indent — and THE GATE HELD. Nothing
+  written. First proof of beat 6 against live infrastructure.
+- Broke, then fixed: session create returns {data:{id}}, so live.ts read .id off
+  the envelope and got undefined; every later call 404'd on "Session not found:
+  undefined".
+- Still blocked: no sandbox (Daytona key), so skills are off and the maths beat
+  cannot run yet.
