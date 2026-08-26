@@ -49,10 +49,15 @@ python /opt/tfy/skills/stores-triage/scripts/analyse.py input.json --chart chart
 ```json
 {
   "part": { ...the get_part row... },
-  "consumption_rows": [ ...rows from get_consumption_log... ],
+  "consumption_rows": [ ...the "rows" array from get_consumption_log... ],
+  "window_days": 120,
   "lead_time_rows": [ ...rows from get_vendor_lead_times... ]
 }
 ```
+
+`window_days` must be the same number you passed to `get_consumption_log`. The
+log only contains days something moved, so without the window the script cannot
+tell a quiet fortnight from no history, and the draw rate comes out too high.
 
 It prints a JSON block containing `projection` (the numbers) and `evidence`
 (what they were computed from), and writes the chart. Use those numbers

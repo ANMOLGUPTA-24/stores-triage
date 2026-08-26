@@ -17,6 +17,7 @@ from __future__ import annotations
 import argparse
 import json
 import sys
+from datetime import date, timedelta
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
@@ -100,7 +101,15 @@ def main() -> int:
 
     payload = json.loads(Path(args.input).read_text())
     part = payload["part"]
-    draw = fit_draw_rate(payload["consumption_rows"])
+    # The rows only cover days something moved. Reconstruct the window that was
+    # actually queried so quiet days at either edge still count as zero draw.
+    window_days = payload.get("window_days")
+    today = date.today()
+    draw = fit_draw_rate(
+        payload["consumption_rows"],
+        window_start=today - timedelta(days=window_days - 1) if window_days else None,
+        window_end=today if window_days else None,
+    )
     lead = fit_lead_time(payload["lead_time_rows"])
     stockout = project_stockout(part["stock_on_hand"], draw)
 

@@ -97,6 +97,29 @@ class TestDrawRate:
         assert rate.days_observed == 4
         assert rate.mean_daily == 3
 
+    def test_quiet_days_at_the_window_edges_still_count(self):
+        # The log only holds days something moved. A part untouched for the last
+        # week has a week of zero-draw days that never appear as rows; dropping
+        # them makes stock look like it is going faster than it is.
+        rows = [
+            {"consumed_on": "2026-08-05", "qty": 10},
+            {"consumed_on": "2026-08-06", "qty": 10},
+        ]
+        without = fit_draw_rate(rows)
+        assert without.days_observed == 2
+        assert without.mean_daily == 10
+
+        withwindow = fit_draw_rate(
+            rows, window_start="2026-08-01", window_end="2026-08-10"
+        )
+        assert withwindow.days_observed == 10
+        assert withwindow.mean_daily == 2
+
+    def test_a_window_that_ends_before_it_starts_is_an_error(self):
+        rows = [{"consumed_on": "2026-08-05", "qty": 1}]
+        with pytest.raises(ValueError, match="window ends before"):
+            fit_draw_rate(rows, window_start="2026-08-10", window_end="2026-08-01")
+
     def test_a_gap_day_can_be_reported_as_a_spike_free_low(self):
         rows = [{"consumed_on": "2026-08-01", "qty": 5}, {"consumed_on": "2026-08-03", "qty": 5}]
         assert fit_draw_rate(rows).had_spike is False

@@ -80,7 +80,15 @@ def percentile(values: Sequence[float], fraction: float) -> float:
     return float(ordered[low] + (ordered[high] - ordered[low]) * (position - low))
 
 
-def _daily_totals(rows: Sequence[dict[str, Any]]) -> list[tuple[str, float]]:
+def _as_date(value: Any) -> date:
+    return value if isinstance(value, date) else datetime.fromisoformat(str(value)).date()
+
+
+def _daily_totals(
+    rows: Sequence[dict[str, Any]],
+    window_start: date | None = None,
+    window_end: date | None = None,
+) -> list[tuple[str, float]]:
     """Collapse issue events into one total per calendar day, gaps included.
 
     A row is an issue event, not a day: the schema allows several issues against
@@ -88,33 +96,53 @@ def _daily_totals(rows: Sequence[dict[str, Any]]) -> list[tuple[str, float]]:
     would divide by the wrong denominator in both directions - double-counting
     busy days and dropping quiet ones - which moves the mean, the variance, the
     spike threshold and every stockout date downstream.
+
+    The window matters at the edges too. The query asks for a rolling history but
+    returns only the days something moved, so a part that has sat untouched for
+    three weeks has three weeks of zero-draw days missing from the end. Inferring
+    the window from the first and last event drops exactly the quiet stretches
+    that should pull the mean down, which makes stock look like it is going
+    faster than it is. Pass the real bounds when you know them.
     """
     totals: dict[date, float] = {}
     for row in rows:
-        day = row["consumed_on"]
-        if not isinstance(day, date):
-            day = datetime.fromisoformat(str(day)).date()
+        day = _as_date(row["consumed_on"])
         totals[day] = totals.get(day, 0.0) + float(row["qty"])
 
-    first, last = min(totals), max(totals)
-    span = (last - first).days
+    first = window_start or min(totals)
+    last = window_end or max(totals)
+    if last < first:
+        raise ValueError("observation window ends before it starts")
     return [
         ((first + timedelta(days=i)).isoformat(), totals.get(first + timedelta(days=i), 0.0))
-        for i in range(span + 1)
+        for i in range((last - first).days + 1)
     ]
 
 
-def fit_draw_rate(rows: Sequence[dict[str, Any]], spike_sigma: float = 3.0) -> DrawRate:
+def fit_draw_rate(
+    rows: Sequence[dict[str, Any]],
+    spike_sigma: float = 3.0,
+    *,
+    window_start: date | str | None = None,
+    window_end: date | str | None = None,
+) -> DrawRate:
     """Fit a daily consumption rate, and notice one-off bursts separately.
 
     A single overhaul can drag the mean up enough to trip a reorder level that
     the steady state would never trip. Reporting both rates is what lets the
     consumption_spike hypothesis be tested rather than asserted.
+
+    Pass the observation window the rows were queried over. Without it the
+    quiet days at either edge are invisible and the draw rate reads high.
     """
     if not rows:
         raise ValueError("no consumption rows to fit")
 
-    daily = _daily_totals(rows)
+    daily = _daily_totals(
+        rows,
+        _as_date(window_start) if window_start else None,
+        _as_date(window_end) if window_end else None,
+    )
     quantities = [qty for _, qty in daily]
     n = len(quantities)
     mean = sum(quantities) / n

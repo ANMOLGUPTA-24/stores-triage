@@ -116,3 +116,11 @@ Two lines per session: what was built, what broke.
   pauses twice, not once; the run log collided on replay.
 - log_run no longer demands a session_id the agent cannot know.
 - 50 Python tests, 32 TS. Real numbers: TRB-4417 p10 7.7 (was 8.2), p50 9.3.
+
+## 2026-08-26 — follow-up review
+- Qodo re-reviewed #4: 5 bugs down to 1, and the survivor was a defect in my own
+  fix. _daily_totals filled gaps between first and last event but not between
+  the query window's edges and those events, so a part quiet for a fortnight
+  read as consuming faster than it does. Window now passed explicitly.
+- 52 Python tests. Real numbers: 120 days observed, 4.45/day, p50 9.4 days.
+- README now carries the Qodo Code Review Evidence section the rules require.

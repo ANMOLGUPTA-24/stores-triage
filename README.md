@@ -185,9 +185,46 @@ human; read tools carry `readOnlyHint` so investigation never stops to ask.
 ## Qodo Code Review Evidence
 
 Every substantive change lands through a pull request reviewed by
-[Qodo](https://qodo.ai). Representative reviewed PRs:
+[Qodo](https://qodo.ai).
 
-- _(links added as PRs merge)_
+**Representative reviewed PR:**
+[#4 — Operator console: four surfaces over the TrueForge event stream](https://github.com/ANMOLGUPTA-24/stores-triage/pull/4)
+([#3 — sandbox analysis and skill](https://github.com/ANMOLGUPTA-24/stores-triage/pull/3)
+carries the other half of the review.)
+
+### What Qodo surfaced, and what changed
+
+Qodo found **eleven issues across the two PRs, and every one was real** — no
+false positives to dismiss. Two were live-run blockers that would each have cost
+a day of scarce model quota to find by running the agent:
+
+- **"Approval gate cannot start."** The skill both forbade calling
+  `raise_indent` before approval *and* instructed calling it so the harness
+  would hold it. An agent obeying the prohibition never creates a pending action
+  for the operator to approve — the demo's central beat could not have fired.
+- **"Hypotheses lack required projection."** The four subagents were dispatched
+  *before* the sandbox analysis whose `despiked_mean_daily` their verdict is
+  required to carry. Circular: the subagent had to guess a number, which is the
+  exact failure this project exists to prevent. The analysis now runs first and
+  its projection is passed to the subagents.
+
+Three were arithmetic errors that would have put wrong figures in front of an
+operator: the stockout band solved with the p20/p80 cutoff while calling itself
+p10/p90; consumption rows were counted as days although the schema permits
+several issues per date and a quiet day has no row at all; and charting a
+zero-stock part divided by a zero median, crashing on the most urgent alert
+there is.
+
+Two attacked the dossier's core promise — that the operator approves the *exact*
+payload that goes out. The approved run sent a different `needed_by` date than
+the mail body shown in the card, and the recorded run skipped the second
+approval pause that `send_vendor_mail` actually triggers.
+
+Nothing was dismissed. The follow-up review then caught a defect in our own fix:
+filling day gaps between the first and last issue still dropped the quiet days
+between the query window's edges and those events, so a part untouched for a
+fortnight read as consuming faster than it does. The observation window is now
+passed explicitly.
 
 ## Licence
 
