@@ -71,3 +71,17 @@ Two lines per session: what was built, what broke.
 - Root on gemini-3-1-pro-preview, subagents on 3-6-flash: separate quota buckets,
   roughly double the throughput for nothing.
 - Daytona dropped. Local sandbox via a narrow AppArmor profile for bwrap instead.
+
+## 2026-08-26 (day 3, night) — sandbox works, quota does not
+- AppArmor profile for bwrap: sandbox.enabled and skill.enabled both true.
+- First full run FAILED: local sandbox has no network, and TrueForge builds a
+  venv inside it that pip-installs pydantic. Five minutes of retries, then error.
+- Fixed by staging wheels on the host and starting the harness with
+  PIP_NO_INDEX=1 PIP_FIND_LINKS=~/.trueforge-wheels. Verified by reproducing
+  TrueForge's exact step inside bwrap --unshare-all: venv + offline pip = ok.
+  Cost no model quota to verify, which was the point.
+- REAL blocker found: Gemini free tier is 20 requests/DAY per model, not 5/min.
+  The failed run ate the whole day's allowance on pip retries.
+- Corrected an earlier claim: subagents inherit the root model. AgentSpec.model
+  is singular and DynamicSubAgentsConfig has no model field, so the root/subagent
+  model split cannot be configured. Constant removed.

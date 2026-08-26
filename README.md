@@ -87,8 +87,46 @@ Register that URL in TrueForge under Settings -> Connectors, with a header of
 `Authorization: Bearer $STORES_MCP_TOKEN`.
 
 You will also need, configured inside TrueForge (Settings):
-- a **model provider** key,
-- a **Daytona** API key for the sandbox.
+- a **model provider** key (Settings -> Models),
+- a **sandbox**.
+
+### Sandbox
+
+Either works; the analysis code is identical in both.
+
+**Daytona** (documented path): paste an API key under Settings -> Sandbox providers.
+
+**Local fallback** (no account): TrueForge runs code under `bubblewrap` when
+`bwrap`, `socat` and `rg` are all on PATH. Two things are easy to miss:
+
+```bash
+sudo apt install -y socat ripgrep
+```
+
+On Ubuntu 24.04, unprivileged user namespaces are restricted, so bubblewrap
+also needs a profile:
+
+```bash
+sudo tee /etc/apparmor.d/bwrap >/dev/null <<'PROFILE'
+abi <abi/4.0>,
+include <tunables/global>
+
+profile bwrap /usr/bin/bwrap flags=(unconfined) {
+  userns,
+  include if exists <local/bwrap>
+}
+PROFILE
+sudo apparmor_parser -r /etc/apparmor.d/bwrap
+```
+
+The sandbox has no network, and TrueForge builds a virtualenv inside it that
+wants `pydantic`. Stage the wheels once and point pip at them offline:
+
+```bash
+mkdir -p ~/.trueforge-wheels
+python3 -m pip download --dest ~/.trueforge-wheels 'pydantic>=2,<3'
+PIP_NO_INDEX=1 PIP_FIND_LINKS=~/.trueforge-wheels npx @truefoundry/trueforge
+```
 
 Run the tests:
 

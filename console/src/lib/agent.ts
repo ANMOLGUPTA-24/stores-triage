@@ -15,12 +15,12 @@ export interface StoresAgentOptions {
  * Free-tier quota is the binding constraint, not cost per token.
  *
  * Gemini's free tier allows 5 requests/minute per model, and a full run is the
- * root agent plus four subagents - comfortably past that. Each model has its
- * own bucket, so putting the root on one and letting subagents inherit the
- * other roughly doubles the throughput available for nothing.
+ * root agent plus four subagents - comfortably past that. Subagents inherit the
+ * root's model (AgentSpec.model is singular and DynamicSubAgentsConfig has no
+ * model field), so the whole run shares one bucket and the only lever is making
+ * fewer round trips.
  */
-export const ROOT_MODEL = 'google-gemini/gemini-3-1-pro-preview'
-export const SUBAGENT_MODEL = 'google-gemini/gemini-3-6-flash'
+export const DEFAULT_MODEL = 'google-gemini/gemini-3-6-flash'
 
 /**
  * Kept short on purpose. Restating the whole procedure here would give the
