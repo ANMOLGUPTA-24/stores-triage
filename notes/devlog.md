@@ -16,3 +16,15 @@ Two lines per session: what was built, what broke.
   indent and the consignment).
 - Fixed: ruled_out counted "inconclusive" as ruled out. It does not - an
   undecided subagent has dismissed nothing.
+
+## 2026-08-26 (day 2)
+- projection.py: draw-rate fit with spike detection, empirical lead-time
+  percentiles, stockout band solved from mean*t +/- z*sd*sqrt(t). Stdlib only so
+  it runs in a bare sandbox. 26 more tests, 46 total.
+- Real seeded data gives TRB-4417 a 9.3-day stockout against a 31-day p80 lead
+  time. The constitution guessed "~9 days" and the data agrees.
+- Skill pack written; analyse.py runs it in the sandbox and draws the chart.
+  Chart redrawn to shade the 22-day exposure gap - that gap is the argument.
+- Broke, then fixed: first chart put the legend on top of the lead-time line and
+  never drew the gap at all.
+- Qodo still not installed. PRs #1 and #2 merged unreviewed.
