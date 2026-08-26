@@ -41,3 +41,11 @@ Two lines per session: what was built, what broke.
      a human after the indent was raised. An approval is now pending only until
      its tool call returns.
 - Run A and Run B both verified on screen. Screenshots captured for the video.
+
+## 2026-08-26 (day 3, later)
+- Harness running standalone on :8790. Registered stores-mcp (authenticated) and
+  the skill by API; harness enumerates all 12 tools. First real harness-to-tool
+  connection.
+- Found: TrueForge has an undocumented LOCAL sandbox fallback needing bwrap +
+  socat + rg. Only socat is missing here, so Daytona is off the critical path.
+- Blocked on: socat (needs sudo), and a model provider key.
