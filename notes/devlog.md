@@ -28,3 +28,16 @@ Two lines per session: what was built, what broke.
 - Broke, then fixed: first chart put the legend on top of the lead-time line and
   never drew the gap at all.
 - Qodo still not installed. PRs #1 and #2 merged unreviewed.
+
+## 2026-08-26 (day 3)
+- Operator console built: four surfaces, one accent colour used only for
+  blocked-on-human. Reducer folds the TrueForge event stream; verdicts are read
+  from adjudicate's arguments, not from subagent prose. 32 TS tests.
+- Runs against a recorded event stream so the waiting states are real.
+- Broke, then fixed, both found by actually driving the UI:
+  1. Approve button sat below the fold and the payload's own scrollbar ate the
+     wheel. Action bar is now sticky.
+  2. turn.done latched "blocked" forever, so the console still claimed it needed
+     a human after the indent was raised. An approval is now pending only until
+     its tool call returns.
+- Run A and Run B both verified on screen. Screenshots captured for the video.

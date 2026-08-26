@@ -28,11 +28,12 @@ adjudicates between them. Differential diagnosis, not a work queue.
 
 ## Status
 
-Day 2 of 6. Working: Postgres schema + synthetic seed, the `stores-mcp` tool
-server, the adjudication logic, the sandbox analysis and chart, and the
-`stores-triage` skill that tells the agent how to run all of it. 46 unit tests.
-Both demo runs reach the correct decision end to end over MCP.
-Not built yet: the operator console.
+Day 3 of 6. Working: Postgres schema + synthetic seed, the `stores-mcp` tool
+server, the adjudication logic, the sandbox analysis and chart, the
+`stores-triage` skill, and the operator console. 78 tests (46 Python, 32 TS).
+Both demo runs reach the correct decision end to end over MCP, and both render
+correctly in the console against a recorded event stream.
+Not wired yet: the console against a live TrueForge turn.
 This section stays honest as the project moves.
 
 ## The two runs
@@ -94,6 +95,22 @@ Run the tests:
 ```bash
 .venv/bin/python -m pytest tests/ -q
 ```
+
+## The console
+
+```bash
+cd console && npm install && npm run dev
+```
+
+Four surfaces and nothing else: the live activity stream, the hypothesis board,
+the dossier the run is blocked on, and the run log. One accent colour, and it
+means one thing only - the system is stopped and waiting for a person.
+
+`src/lib/events.ts` folds a TrueForge event stream into everything the console
+draws. The harness gives us the pause; a `tool.approval_required` event carries
+the held tool call and nothing else, so the evidence behind an approval is
+gathered from events that already went past. The four verdicts are read from the
+*arguments* of the `adjudicate` call rather than from subagent prose.
 
 ## The skill
 
