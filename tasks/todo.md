@@ -22,33 +22,37 @@ Every item below advances a beat in CLAUDE.md §0b. Anything that doesn't, isn't
 - [x] Verified: Run A 9.9 days to stockout / unconfirmed cover;
       Run B 10.2 days / real cover + duplicate indent
 - [x] LICENCE, .gitignore, .env.example, README
-- [ ] git init, push public repo, install Qodo, PR #1 = these rails
-- [ ] **Anmol:** Daytona API key; SMTP app password; model provider key
+- [x] git init, push public repo, PR #1 = these rails
+- [ ] **Anmol:** connect Qodo (still outstanding — required of every submission)
 
-## Day 1 — Wed 26 Aug — the tool path is real
-- [ ] `stores-mcp`: HTTP MCP server over the seeded Postgres, bearer-token auth
-  - [ ] read-only: `get_part`, `get_consumption_log`, `list_open_indents`,
-        `list_consignments`, `get_vendor_lead_times`
-  - [ ] gated writes: `raise_indent`, `send_vendor_mail`
-  - [ ] `adjudicate` — deterministic, unit-tested, takes the four verdicts
-- [ ] Register in TrueForge; agent calls it end to end
-- [ ] **Capture: first successful tool call**
+## Day 1 — Tue 25 Aug — the tool path is real  ✅
+- [x] `stores-mcp`: 12 tools over the seeded Postgres, bearer-token auth
+- [x] `adjudicate` — deterministic, unit-tested
+- [x] Registered in TrueForge; harness enumerates all 12 tools
+- [x] **Captured: first successful tool call, live, gate held**
 
-## Day 2 — Thu 27 Aug — the reasoning
-- [ ] Root agent instructions: dispatch exactly four hypothesis subagents,
-      fixed verdict + evidence schema
-- [ ] Sandbox Python: consumption fit, lead-time distribution, projected
-      stockout date with uncertainty band, chart
-- [ ] Unit tests on adjudication + the maths, **including the Run B case**
-- [ ] **Capture: first sandbox chart**
+## Day 2 — Wed 26 Aug — the reasoning  ✅
+- [x] Skill pack: four hypotheses, fixed verdict schema, <20-call budget
+- [x] Sandbox Python: consumption fit, lead-time distribution, stockout band, chart
+- [x] 46 Python tests incl. the Run B case
+- [x] **Captured: first sandbox chart (22-day exposure gap)**
 
-## Day 3 — Fri 28 Aug — the gate and the console
-- [ ] Approval gate on `raise_indent` and `send_vendor_mail`
-- [ ] Dossier assembly from the event stream (the harness gives the pause,
-      the evidence is ours to gather)
-- [ ] Console: live activity stream · hypothesis board · dossier card · run log
-- [ ] Empty state and waiting state — they are most of the demo
-- [ ] **Capture: first time the gate holds**
+## Day 3 — Wed 26 Aug — the gate and the console  ✅
+- [x] Approval gate on `raise_indent` and `send_vendor_mail`, verified live
+- [x] Dossier assembly from the event stream
+- [x] Console: activity stream · hypothesis board · dossier card · run log
+- [x] Empty and waiting states built and verified on screen
+- [x] **Captured: the gate holding, both runs rendered**
+- [x] Harness running standalone; MCP server + skill registered
+- [x] Local sandbox working offline (AppArmor + staged wheels)
+
+## Day 3.5 — the model wall
+- [x] Measured: bare TrueForge agent = 67k tokens/request, not tunable
+- [x] Groq free tier (8k TPM) cannot host TrueForge at all
+- [x] Gemini Pro preview: no free tier (limit 0)
+- [x] Gemini Flash: 20 requests/day — one full run per day
+- [ ] **First complete live Run A** — blocked until quota resets (~12:30 IST)
+- [ ] Consider a second free bucket (OpenRouter) for more attempts/day
 
 ## Day 4 — Sat 29 Aug — Run B, polish, record
 - [ ] Run B end to end; "no action" lands in the run log as an outcome
