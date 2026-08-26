@@ -71,3 +71,32 @@ or hosted (Postgres + Redis, Docker Compose / Helm).
 ## Still unverified
 - Daytona free-tier limits (may not matter now the local fallback exists).
 - A remote HTTP MCP for Gmail/Slack that supports **sending** (not just reading).
+
+## Context cost, measured (26 Aug, v0.1.4)
+
+A bare TrueForge agent — no MCP servers, no skills — sends **67,358 tokens** on
+its first request. Measured by letting Groq's 413 report the size:
+
+| configuration | first request |
+|---|---|
+| preload all 12 stores tools + skill | 69,658 |
+| deferred tools + skill | 68,887 |
+| deferred tools, no skill | 68,681 |
+| no MCP, no skill | 67,358 |
+| everything off (sandbox, subagents, genUI, askUser) | 65,809 |
+
+Our whole contribution is ~2.3k. The harness's own system prompt and built-in
+tools are ~66k and are **not configurable** — every feature toggle together
+moves it by ~1.5k.
+
+Consequence for free tiers: the binding constraint is tokens-per-minute, and it
+is not something an agent author can tune.
+
+## Free-tier viability (26 Aug)
+
+| provider / model | limit | verdict |
+|---|---|---|
+| Groq `openai/gpt-oss-120b` | 8,000 TPM (`on_demand`) | **unusable** — one request is 8x the per-minute ceiling, pacing cannot help |
+| Groq `llama-3.3-70b-versatile` | Enterprise / contact sales | 404 on a free account |
+| Gemini `gemini-3.6-flash` | 250K TPM, **20 requests/day** | usable at ~1 run/day if the run fits in <20 calls |
+| Gemini `gemini-3.1-pro-preview` | `limit: 0` | no free tier at all |

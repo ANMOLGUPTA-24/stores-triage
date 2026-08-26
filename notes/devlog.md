@@ -85,3 +85,15 @@ Two lines per session: what was built, what broke.
 - Corrected an earlier claim: subagents inherit the root model. AgentSpec.model
   is singular and DynamicSubAgentsConfig has no model field, so the root/subagent
   model split cannot be configured. Constant removed.
+
+## 2026-08-26 (day 3, late) — the model wall
+- Groq free tier: 8,000 TPM. A bare TrueForge agent sends 67k tokens before we
+  add anything, so no TrueForge agent can make a single call. Not tunable.
+- Measured the breakdown by reading Groq's 413s: harness ~66k, our MCP+skill
+  ~2.3k. Every feature toggle together saves ~1.5k.
+- gemini-3.1-pro-preview has limit: 0 on free tier — paid only.
+- gemini-3.6-flash is the only working option: 20 requests/day, exhausted today
+  by the pre-fix pip retry loop.
+- Staged matplotlib wheels too, so the chart renders offline in the sandbox.
+- Skill rewritten to a <20-call budget so one day's quota buys one full run.
+- Next window: Gemini quota resets midnight US Pacific.
