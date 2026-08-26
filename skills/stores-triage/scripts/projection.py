@@ -11,11 +11,15 @@ worse than useless, because it is confidently wrong in a way nobody can check.
 from __future__ import annotations
 
 import math
+from datetime import date, datetime, timedelta
 from dataclasses import dataclass, field
 from typing import Any, Sequence
 
-# 80th percentile of the standard normal. Used for the pessimistic tail.
-_Z80 = 0.8416212335729143
+# 90th percentile of the standard normal, which puts the solved edges at the
+# 10th and 90th percentiles - matching what the fields are called. Using the
+# 80th-percentile value here would name a p20 edge "p10" and hand adjudication a
+# deadline less conservative than advertised.
+_Z90 = 1.2815515655446004
 
 
 @dataclass(frozen=True)
@@ -76,6 +80,30 @@ def percentile(values: Sequence[float], fraction: float) -> float:
     return float(ordered[low] + (ordered[high] - ordered[low]) * (position - low))
 
 
+def _daily_totals(rows: Sequence[dict[str, Any]]) -> list[tuple[str, float]]:
+    """Collapse issue events into one total per calendar day, gaps included.
+
+    A row is an issue event, not a day: the schema allows several issues against
+    one date, and a day with no issues has no row at all. Treating rows as days
+    would divide by the wrong denominator in both directions - double-counting
+    busy days and dropping quiet ones - which moves the mean, the variance, the
+    spike threshold and every stockout date downstream.
+    """
+    totals: dict[date, float] = {}
+    for row in rows:
+        day = row["consumed_on"]
+        if not isinstance(day, date):
+            day = datetime.fromisoformat(str(day)).date()
+        totals[day] = totals.get(day, 0.0) + float(row["qty"])
+
+    first, last = min(totals), max(totals)
+    span = (last - first).days
+    return [
+        ((first + timedelta(days=i)).isoformat(), totals.get(first + timedelta(days=i), 0.0))
+        for i in range(span + 1)
+    ]
+
+
 def fit_draw_rate(rows: Sequence[dict[str, Any]], spike_sigma: float = 3.0) -> DrawRate:
     """Fit a daily consumption rate, and notice one-off bursts separately.
 
@@ -86,16 +114,15 @@ def fit_draw_rate(rows: Sequence[dict[str, Any]], spike_sigma: float = 3.0) -> D
     if not rows:
         raise ValueError("no consumption rows to fit")
 
-    quantities = [float(r["qty"]) for r in rows]
+    daily = _daily_totals(rows)
+    quantities = [qty for _, qty in daily]
     n = len(quantities)
     mean = sum(quantities) / n
     variance = sum((q - mean) ** 2 for q in quantities) / n
     stdev = math.sqrt(variance)
 
     threshold = mean + spike_sigma * stdev
-    spike_days = [
-        str(r["consumed_on"]) for r, q in zip(rows, quantities) if q > threshold
-    ]
+    spike_days = [day for day, qty in daily if qty > threshold]
     ordinary = [q for q in quantities if q <= threshold]
     despiked = sum(ordinary) / len(ordinary) if ordinary else mean
 
@@ -148,8 +175,8 @@ def project_stockout(stock_on_hand: int, draw: DrawRate) -> Stockout:
 
     return Stockout(
         days_p50=stock_on_hand / draw.mean_daily,
-        days_p10=solve(_Z80),
-        days_p90=solve(-_Z80),
+        days_p10=solve(_Z90),
+        days_p90=solve(-_Z90),
     )
 
 

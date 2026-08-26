@@ -26,6 +26,13 @@ const RUNS = {
 type PartNo = keyof typeof RUNS
 
 /** How the run continues once a person has approved it. */
+/**
+ * The date shown in the dossier's mail body. send_vendor_mail composes the real
+ * outgoing mail from whatever is passed here, so a different value would mean
+ * the operator approved one letter and a different one went out.
+ */
+const REVIEWED_NEEDED_BY = '2026-08-26'
+
 const APPROVED_TAIL: StreamEvent[] = [
   {
     type: 'tool.response',
@@ -47,13 +54,16 @@ const APPROVED_TAIL: StreamEvent[] = [
             part_no: 'TRB-4417',
             indent_no: 'IND-2026-0742',
             qty: 200,
-            needed_by: '2026-09-04',
+            needed_by: REVIEWED_NEEDED_BY,
           }),
         },
         toolInfo: { type: 'mcp', serverName: 'stores' },
       },
     ],
   },
+  // send_vendor_mail carries destructiveHint as well, so approving the indent
+  // does not pre-approve the mail. A live run stops again here.
+  { type: 'tool.approval_required', threadId: 'main', toolCalls: [{ id: 't6', sourceEventId: 'e12' }] },
   {
     type: 'tool.response',
     threadId: 'main',
@@ -144,15 +154,18 @@ export default function App() {
     return () => clearTimeout(timer)
   }, [cursor, queue.length])
 
-  // Record the outcome once the run settles.
+  // Record the outcome once the run settles. Keyed by turn id rather than by
+  // cursor, so replaying the same run twice does not overwrite the first entry.
   useEffect(() => {
     if (!state.outcome || cursor < queue.length) return
+    const key = `${state.turnId ?? 'run'}-${state.outcome}`
     setLog((entries) =>
-      entries.some((e) => e.id === cursor && e.part_no === partNo)
+      entries.some((e) => e.key === key)
         ? entries
         : [
             {
-              id: cursor,
+              key,
+              id: entries.length + 1,
               part_no: partNo,
               outcome: state.outcome!,
               logged_at: new Date().toISOString(),

@@ -97,3 +97,22 @@ Two lines per session: what was built, what broke.
 - Staged matplotlib wheels too, so the chart renders offline in the sandbox.
 - Skill rewritten to a <20-call budget so one day's quota buys one full run.
 - Next window: Gemini quota resets midnight US Pacific.
+
+## 2026-08-26 (day 3) — Qodo review, 11 findings, all real
+- Connected Qodo; /review on PRs #3 and #4. Six findings on #3, five on #4.
+- Two would have broken tomorrow's single run:
+  * "Approval gate cannot start" — the skill both forbade calling raise_indent
+    before approval and told the agent to call it so the harness would hold it.
+    An agent obeying the prohibition never creates anything to approve.
+  * "Hypotheses lack required projection" — subagents ran before the sandbox
+    analysis, but consumption_spike's evidence needs despiked_mean_daily from
+    it. Circular: the subagent had to guess. Analysis now runs first.
+- Correctness fixes: p10/p90 used z=0.8416 (the p20/p80 cutoff) while being
+  named p10; consumption rows were counted as days though the schema allows
+  several issues per date and quiet days have no row at all; zero stock divided
+  by a zero median when drawing the chart.
+- Fidelity fixes: the approved replay sent a different needed_by than the mail
+  the operator reviewed; send_vendor_mail is gated separately so a live run
+  pauses twice, not once; the run log collided on replay.
+- log_run no longer demands a session_id the agent cannot know.
+- 50 Python tests, 32 TS. Real numbers: TRB-4417 p10 7.7 (was 8.2), p50 9.3.

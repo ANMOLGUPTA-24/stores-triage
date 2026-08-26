@@ -7,6 +7,8 @@
  */
 
 export interface RunLogEntry {
+  /** Stable per-run identity, so a replay does not collide with its original. */
+  key: string
   id: number
   part_no: string
   outcome: 'indent_raised' | 'no_action' | 'rejected_by_operator'
@@ -46,7 +48,7 @@ export function RunLog({ entries }: { entries: RunLogEntry[] }) {
           <div className="empty">No runs yet today.</div>
         ) : (
           entries.map((entry) => (
-            <div className={`log-row ${OUTCOME_CLASS[entry.outcome]}`} key={entry.id}>
+            <div className={`log-row ${OUTCOME_CLASS[entry.outcome]}`} key={entry.key}>
               <span className="mono" style={{ color: 'var(--ink-faint)' }}>
                 {time(entry.logged_at)}
               </span>

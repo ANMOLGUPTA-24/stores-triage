@@ -17,6 +17,7 @@ from stores_triage.projection import (
 
 
 def log(quantities, start_day: int = 1):
+    """One issue event per consecutive day."""
     return [
         {"consumed_on": f"2026-08-{start_day + i:02d}", "qty": q}
         for i, q in enumerate(quantities)
@@ -71,6 +72,34 @@ class TestDrawRate:
     def test_despiked_rate_equals_mean_when_nothing_spikes(self):
         rate = fit_draw_rate(log([3, 3, 4, 2]))
         assert rate.despiked_mean_daily == pytest.approx(rate.mean_daily)
+
+    def test_several_issues_on_one_day_count_as_one_day(self):
+        # A row is an issue event, not a day. Counting rows as days would report
+        # four days here and halve the mean.
+        rows = [
+            {"consumed_on": "2026-08-01", "qty": 2},
+            {"consumed_on": "2026-08-01", "qty": 3},
+            {"consumed_on": "2026-08-02", "qty": 4},
+            {"consumed_on": "2026-08-02", "qty": 1},
+        ]
+        rate = fit_draw_rate(rows)
+        assert rate.days_observed == 2
+        assert rate.mean_daily == 5
+
+    def test_days_with_no_issues_count_as_zero_draw(self):
+        # The query returns no row for a quiet day. Skipping those days would
+        # inflate the mean and shorten every stockout date.
+        rows = [
+            {"consumed_on": "2026-08-01", "qty": 6},
+            {"consumed_on": "2026-08-04", "qty": 6},
+        ]
+        rate = fit_draw_rate(rows)
+        assert rate.days_observed == 4
+        assert rate.mean_daily == 3
+
+    def test_a_gap_day_can_be_reported_as_a_spike_free_low(self):
+        rows = [{"consumed_on": "2026-08-01", "qty": 5}, {"consumed_on": "2026-08-03", "qty": 5}]
+        assert fit_draw_rate(rows).had_spike is False
 
     def test_empty_log_is_an_error_not_a_zero(self):
         # Silently returning 0/day would project an infinite stockout date.
@@ -133,12 +162,25 @@ class TestStockout:
         late = out.days_p90 - out.days_p50
         assert late > early
 
-    def test_the_early_edge_satisfies_the_equation_it_solves(self):
-        # mean*t + z*stdev*sqrt(t) should land exactly on the stock figure.
+    def test_the_early_edge_is_a_real_tenth_percentile(self):
+        # The field is called p10, so the z it solves with must be the 90th
+        # percentile of the standard normal (1.2816), not the 80th (0.8416).
+        # Using the latter would name a p20 edge "p10" and hand adjudication a
+        # deadline less conservative than the dossier claims.
+        from statistics import NormalDist
+
+        z = NormalDist().inv_cdf(0.90)
         rate = DrawRate(mean_daily=4.0, stdev_daily=2.0, days_observed=30)
-        out = project_stockout(40, rate)
-        t = out.days_p10
-        assert 4.0 * t + 0.8416212335729143 * 2.0 * math.sqrt(t) == pytest.approx(40)
+        t = project_stockout(40, rate).days_p10
+        assert 4.0 * t + z * 2.0 * math.sqrt(t) == pytest.approx(40)
+
+    def test_the_late_edge_is_a_real_ninetieth_percentile(self):
+        from statistics import NormalDist
+
+        z = NormalDist().inv_cdf(0.90)
+        rate = DrawRate(mean_daily=4.0, stdev_daily=2.0, days_observed=30)
+        t = project_stockout(40, rate).days_p90
+        assert 4.0 * t - z * 2.0 * math.sqrt(t) == pytest.approx(40)
 
     def test_zero_consumption_is_an_error(self):
         rate = DrawRate(mean_daily=0.0, stdev_daily=0.0, days_observed=30)
