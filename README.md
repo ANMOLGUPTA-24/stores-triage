@@ -28,10 +28,11 @@ adjudicates between them. Differential diagnosis, not a work queue.
 
 ## Status
 
-Day 1 of 6. Working: Postgres schema + synthetic seed, the `stores-mcp` tool
-server, and the adjudication logic (20 unit tests, both runs covered). Both
-demo runs already reach the correct decision end to end over MCP.
-Not built yet: the agent instructions, the sandbox analysis, the console.
+Day 2 of 6. Working: Postgres schema + synthetic seed, the `stores-mcp` tool
+server, the adjudication logic, the sandbox analysis and chart, and the
+`stores-triage` skill that tells the agent how to run all of it. 46 unit tests.
+Both demo runs reach the correct decision end to end over MCP.
+Not built yet: the operator console.
 This section stays honest as the project moves.
 
 ## The two runs
@@ -93,6 +94,18 @@ Run the tests:
 ```bash
 .venv/bin/python -m pytest tests/ -q
 ```
+
+## The skill
+
+`skills/stores-triage/` is a TrueForge skill - a git-backed instruction pack.
+Register it under Settings -> Skills with this repo's URL and path
+`skills/stores-triage`. The harness materialises it into the sandbox at
+`/opt/tfy/skills/stores-triage`, so the agent runs `scripts/analyse.py` rather
+than rewriting the arithmetic from memory each time.
+
+`scripts/projection.py` inside the skill is a copy of the tested
+`stores_triage/projection.py`. `scripts/sync_skill.py` refreshes it and a unit
+test fails if the two ever drift.
 
 ## Tools
 
