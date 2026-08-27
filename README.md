@@ -99,6 +99,34 @@ You will also need, configured inside TrueForge (Settings):
 - a **model provider** key (Settings -> Models),
 - a **sandbox**.
 
+### Model provider, and why the free tier shapes the design
+
+A bare TrueForge agent sends about **67,000 tokens per request** before this
+project adds anything — our MCP server and skill add roughly 2,300 more. That
+number decides which free tiers can host it at all:
+
+| provider | free limit | usable? |
+|---|---|---|
+| Groq | 8,000 tokens/min | no — one request exceeds the minute budget |
+| Gemini 3.1 Pro preview | limit 0 | no — paid only |
+| Gemini 3.6 Flash | 250K TPM, **20 requests/day** | one run per day, if nothing is wasted |
+| OpenRouter | varies by model, ~50/day typical | yes, and it allows retries |
+
+Requests, not tokens, are the scarce resource, and a full run costs on the order
+of a dozen. That is why the skill carries an explicit budget, why each subagent
+is allowed exactly one tool call, and why the analysis step fetches its own
+record instead of making a round trip per table.
+
+To add OpenRouter: Settings -> Models -> Add custom provider, base URL
+`https://openrouter.ai/api/v1`, and pick a model that supports **tool calling** —
+this agent is nothing but tool calls. Then:
+
+```bash
+cd console && TF_MODEL=openrouter/<model-id> node scripts/run.mjs
+```
+
+`TF_PART` selects the alert (`TRB-4417` for Run A, `BRK-2290` for Run B).
+
 ### Sandbox
 
 Either works; the analysis code is identical in both.
