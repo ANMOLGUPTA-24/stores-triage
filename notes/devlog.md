@@ -187,3 +187,27 @@ Two lines per session: what was built, what broke.
   day's twenty, spent on an agent retrying a sandbox that could never come up.
   A watchdog now kills a run on the first `Sandbox initialization failed`, so a
   broken sandbox costs one request instead of six.
+
+- **First live run that reached the sandbox.** `*** SANDBOX UP ***` at 19s, then
+  the skill read, `get_part`, `get_consumption_log`, `get_vendor_lead_times`,
+  `input.json` written, and `analyse.py` run inside bwrap. The sandbox installed
+  pydantic *and* matplotlib from pypi on its own, which is the proof the network
+  fix is real and not a story.
+
+  Numbers computed in the sandbox, not by the model:
+
+      mean_daily_draw        4.48/day     over 120 observed days
+      days_to_stockout       9.4  (p10 7.7, p90 11.4)
+      lead_time_p50 / p80    23.0 / 29.8  over 14 completed orders
+      vendor_runs_late       true         (promised 21)
+      spike_days             []           so consumption_spike has nothing to stand on
+
+  Chart written and recovered to `notes/evidence/runA-chart.png`: a 20-day
+  stretch with no stock between running dry and the vendor delivering. That gap
+  is the argument for ordering now, and it is drawn rather than asserted.
+
+- Then 429: 20 requests/day exhausted, about six of them wasted on the broken
+  sandbox before the watchdog existed. The run stopped one step before
+  dispatching the four subagents.
+- The storyboard said "~22-day gap"; the fresh seed makes it 20. Made that a
+  placeholder too - the chart prints the number, so read it off the chart.

@@ -45,7 +45,8 @@ Screen: the dossier card. Let it sit. Do not scroll fast.
 Show, in this order:
 - **G1** The header goes amber — **"blocked on you"** in the top bar at the same time
 - **G2** The numbers, and say they came out of Python in the sandbox, not the model
-- **G3** The chart — the ~22-day gap between running dry and the vendor delivering
+- **G3** The chart — the ⟨gap⟩-day stretch with no stock, shaded, between running
+  dry and the vendor delivering (the chart labels it; read the number off it)
 - **G4** Scroll to the **full mail body**, verbatim, not a summary
 - **G5** The counterfactual: *"if CN-8821 is confirmed and lands by ⟨CN-8821 ETA⟩,
   do not raise this indent"*
@@ -108,7 +109,8 @@ you record. Read them off the screen; do not read them off this page.
       cover, a stale volume flips **B3** and turns Run B into an indent, which
       destroys the whole Run A / Run B contrast the video is built on.
 - [ ] Confirm both runs still reach the right verdict after re-seeding
-- [ ] Read the live ETAs out of the database and fill in the ⟨placeholders⟩:
+- [ ] Read the live ETAs out of the database and fill in the ⟨placeholders⟩
+      (the ⟨gap⟩ in G3 is printed on the chart itself):
       `docker exec stores-triage-db psql -U stores -d stores -c \
        "select consignment_no, eta, status from consignments;"`
 
