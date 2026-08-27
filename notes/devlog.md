@@ -138,3 +138,52 @@ Two lines per session: what was built, what broke.
   failure that idles a locomotive. Now requires 0 <= days_away <= horizon.
 - Seed dates drift once the volume is old. Documented the re-seed and added it
   to the pre-recording checklist.
+
+## 2026-08-28 (day 5, small hours) — the local sandbox never had network
+
+- Re-seeded the database. Fresh ETAs: CN-8821 unconfirmed +2 days (Run A),
+  CN-9104 in transit +3 days (Run B). The two runs still look identical from the
+  alert alone, which is the whole demo.
+- Merged PR #5 after Qodo's one finding. It flagged that the PR changed triage
+  behaviour without naming a demo beat; writing that link down exposed a worse
+  problem, which is that the storyboard pinned literal dates. It said CN-9104
+  "lands 28 Aug" while the fresh seed says the 30th. Beats have IDs now and the
+  dates are placeholders read off the database on the day.
+
+- **Root-caused the sandbox failure that has been blamed on pip all week.**
+  The story was "the sandbox has no network, so stage wheels and set
+  PIP_NO_INDEX". Both halves were wrong.
+
+  1. The harness builds the sandbox child env from scratch —
+     `childEnv = {...commandEnv(...)}` — so `PIP_NO_INDEX` and `PIP_FIND_LINKS`
+     set on the harness process never reach the sandbox at all. The wheelhouse
+     was never being consulted. What was verified on day 3 was bwrap by hand,
+     not the harness, so nobody noticed.
+  2. The sandbox is *supposed* to have network: `pypi.org` and
+     `files.pythonhosted.org` are both on TrueForge's own allowed-domain list.
+
+  The real fault is a filesystem/network mismatch. SRT reaches its filtering
+  proxy over a Unix socket at `os.tmpdir()/claude-http-<id>.sock`, but
+  TrueForge's `ALLOW_READ_BY_PLATFORM.linux` does not include `/tmp`. The
+  sandboxed process cannot see the socket, so every connection dies with
+  `Proxy CONNECT aborted`, so `pip install pydantic` — the first thing a sandbox
+  does — always fails. On Linux the local sandbox cannot start, and skills go
+  with it, because skills require a sandbox.
+
+  Proved it rather than guessed it: drove SRT's own CLI with TrueForge's exact
+  filesystem policy. `allowRead: ["/"]` gives `pypi HTTP 200`; the harness's real
+  policy gives `Proxy CONNECT aborted`; adding `/tmp` to the same policy gives
+  `HTTP 200` again. Three runs, one variable, no model involved.
+
+- Fixed without patching the package. TrueForge adds one more path to allow-read
+  at runtime: the Code Mode socket parent, which it computes as
+  `os.tmpdir()/tf_cms` and then realpath()s. Set `TMPDIR` to a short directory we
+  own and make `tf_cms` inside it a symlink back to its own parent, and the
+  allowed path becomes `TMPDIR` itself — which is where the proxy socket lives.
+  The link has to be made after boot, because TrueForge rm -rf's that path on
+  startup and only reads it when the first sandbox is created. All of it is in
+  `scripts/start_harness.sh` with the reasoning written above it.
+- Cost of finding this the expensive way: about six model requests out of the
+  day's twenty, spent on an agent retrying a sandbox that could never come up.
+  A watchdog now kills a run on the first `Sandbox initialization failed`, so a
+  broken sandbox costs one request instead of six.

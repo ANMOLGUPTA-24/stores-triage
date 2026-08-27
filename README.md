@@ -128,14 +128,38 @@ PROFILE
 sudo apparmor_parser -r /etc/apparmor.d/bwrap
 ```
 
-The sandbox has no network, and TrueForge builds a virtualenv inside it that
-wants `pydantic`. Stage the wheels once and point pip at them offline:
+Then start the harness with:
 
 ```bash
-mkdir -p ~/.trueforge-wheels
-python3 -m pip download --dest ~/.trueforge-wheels 'pydantic>=2,<3'
-PIP_NO_INDEX=1 PIP_FIND_LINKS=~/.trueforge-wheels npx @truefoundry/trueforge
+./scripts/start_harness.sh
 ```
+
+Do not start it with a bare `npx @truefoundry/trueforge`. On Linux the local
+sandbox cannot reach the network as shipped, and the first thing it does is
+`pip install pydantic` into its own virtualenv — so it never starts, and skills
+go with it, because skills require a sandbox.
+
+The cause is a mismatch inside the harness rather than a missing package. SRT
+reaches its filtering proxy over a Unix socket at
+`os.tmpdir()/claude-http-<id>.sock`, but TrueForge's Linux allow-read list
+
+```
+/usr/bin /bin /usr/sbin /sbin /lib /lib64 /usr/lib /usr/lib64
+/usr/local /etc /dev /proc /sys   + the SRT vendor directory
+```
+
+does not include `/tmp`. The sandboxed process cannot see the socket, so every
+outbound connection fails with `Proxy CONNECT aborted` — even though `pypi.org`
+and `files.pythonhosted.org` are both on TrueForge's own allowed-domain list.
+
+`scripts/start_harness.sh` works around it without patching the package, by
+pointing `TMPDIR` at a short directory you own and making TrueForge's Code Mode
+socket parent (`$TMPDIR/tf_cms`, which the harness realpath()s and adds to
+allow-read) resolve back to that directory. The full reasoning is in the script.
+
+Setting `PIP_NO_INDEX` / `PIP_FIND_LINKS` on the harness process does **not**
+help: the harness builds the sandbox's environment from scratch, so those
+variables never reach it.
 
 Run the tests:
 
