@@ -29,10 +29,10 @@ alone these are the same problem.** They are not.
 Screen: activity stream on the left filling up, hypothesis board on the right.
 
 Beats to show, in order:
-1. Tool calls landing in monospace — `get_part`, `get_consumption_log`
-2. **Four subagents appearing at once** on the board, each "investigating"
-3. `*** SANDBOX UP ***` in the stream
-4. Verdicts arriving: three negative, `inbound_delay` positive with CN-8821
+- **A1** Tool calls landing in monospace — `get_part`, `get_consumption_log`
+- **A2** **Four subagents appearing at once** on the board, each "investigating"
+- **A3** `*** SANDBOX UP ***` in the stream
+- **A4** Verdicts arriving: three negative, `inbound_delay` positive with CN-8821
 
 Say: four competing explanations, one subagent each, running in parallel. Every
 one of them is trying to prove the shortage is *not* real. Ruling all four out
@@ -43,12 +43,12 @@ is what makes it real. This is differential diagnosis, not a task list.
 Screen: the dossier card. Let it sit. Do not scroll fast.
 
 Show, in this order:
-1. The header goes amber — **"blocked on you"** in the top bar at the same time
-2. The numbers, and say they came out of Python in the sandbox, not the model
-3. The chart — the 22-day gap between running dry and the vendor delivering
-4. Scroll to the **full mail body**, verbatim, not a summary
-5. The counterfactual: *"if CN-8821 is confirmed and lands by 2026-08-27, do not
-   raise this indent"*
+- **G1** The header goes amber — **"blocked on you"** in the top bar at the same time
+- **G2** The numbers, and say they came out of Python in the sandbox, not the model
+- **G3** The chart — the ~22-day gap between running dry and the vendor delivering
+- **G4** Scroll to the **full mail body**, verbatim, not a summary
+- **G5** The counterfactual: *"if CN-8821 is confirmed and lands by ⟨CN-8821 ETA⟩,
+  do not raise this indent"*
 
 Say: the harness gives us the pause. The dossier is ours. An approval is only
 worth anything if the human can check it in five seconds — so the gate carries
@@ -64,10 +64,10 @@ Screen: second alert. Same shape.
 Say up front: this one looks identical. Same shortfall, same ten days.
 
 Beats:
-1. Same four subagents dispatched
-2. `duplicate_indent` **positive** — IND-2026-0731, raised seven days ago
-3. `inbound_delay` **positive** — CN-9104, in transit, lands 28 Aug
-4. Recommendation: **no action**
+- **B1** Same four subagents dispatched
+- **B2** `duplicate_indent` **positive** — IND-2026-0731, raised seven days ago
+- **B3** `inbound_delay` **positive** — CN-9104, in transit, lands ⟨CN-9104 ETA⟩
+- **B4** Recommendation: **no action**
 
 Point at the screen and say: **there is no amber anywhere, and no Approve
 button.** Nothing to approve, because nothing should happen. The run log records
@@ -93,11 +93,24 @@ the judgment are code you can read and test.
 
 ## Before recording
 
+Every date in this script is written as ⟨placeholder⟩ on purpose. The seed is
+`CURRENT_DATE`-relative, so the ETAs are whatever the database says on the day
+you record. Read them off the screen; do not read them off this page.
+
 - [ ] **Re-seed the database.** `docker compose down -v && docker compose up -d --wait`
       The seed is CURRENT_DATE-relative but fixed at volume-creation time, so an
       old volume shows consignment ETAs in the past — CN-8821 "due" a date that
       has already gone by reads badly on camera and changes what the agent says.
+
+      This is what protects beats **A4**, **G5** and **B3** specifically: all
+      three name a consignment ETA out loud, and an overdue ETA does not just
+      look stale — since `_lands_in_time` stopped counting overdue stock as
+      cover, a stale volume flips **B3** and turns Run B into an indent, which
+      destroys the whole Run A / Run B contrast the video is built on.
 - [ ] Confirm both runs still reach the right verdict after re-seeding
+- [ ] Read the live ETAs out of the database and fill in the ⟨placeholders⟩:
+      `docker exec stores-triage-db psql -U stores -d stores -c \
+       "select consignment_no, eta, status from consignments;"`
 
 ## Redaction checklist, before recording
 
