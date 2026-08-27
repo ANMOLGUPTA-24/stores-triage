@@ -24,44 +24,27 @@ without checking.
 
 ## Procedure
 
-### 1. Pull the record
-
-You were given the part number, so skip `list_alerts`. Two steps, because the
-third call needs a value the first one returns:
-
-1. `get_part(part_no)` and `get_consumption_log(part_no, days=120)` together
-2. `get_vendor_lead_times(vendor_code)` using the `vendor_code` from `get_part`
-
-Do not fetch indents or consignments yourself. Those are the subagents' evidence
-and fetching them twice wastes a call each.
-
-### 2. Do the arithmetic in the sandbox
-
-Write the record you pulled to a JSON file and run the bundled script:
+### 1. Get the record and the numbers, in one sandbox call
 
 ```bash
-pip install matplotlib --quiet     # only needed for the chart
-python /opt/tfy/skills/stores-triage/scripts/analyse.py input.json --chart chart.png
+pip install matplotlib --quiet && \
+python /opt/tfy/skills/stores-triage/scripts/analyse.py \
+  --part-no <PART-NO> --days 120 --chart chart.png
 ```
 
-`input.json` is:
+That is the whole step. The script pulls the part, the consumption log and the
+vendor lead times itself over Code Mode, then computes everything and writes the
+chart. It prints `part`, `projection` (the numbers), and `evidence` (what they
+were computed from). Use those figures verbatim.
 
-```json
-{
-  "part": { ...the get_part row... },
-  "consumption_rows": [ ...the "rows" array from get_consumption_log... ],
-  "window_days": 120,
-  "lead_time_rows": [ ...rows from get_vendor_lead_times... ]
-}
-```
+**Do not fetch the record yourself first.** You do not need `get_part` or
+`get_consumption_log`, and copying rows out of a tool result into a script is
+the one thing this design exists to prevent: it puts the model in the path of
+the evidence, where a single mistyped quantity moves every number downstream and
+nothing catches it.
 
-`window_days` must be the same number you passed to `get_consumption_log`. The
-log only contains days something moved, so without the window the script cannot
-tell a quiet fortnight from no history, and the draw rate comes out too high.
-
-It prints a JSON block containing `projection` (the numbers) and `evidence`
-(what they were computed from), and writes the chart. Use those numbers
-verbatim.
+Do not fetch indents or consignments either. Those are the subagents' evidence,
+and fetching them twice wastes a call each.
 
 **This runs before the subagents on purpose.** Two of them need its output:
 `consumption_spike` needs `despiked_mean_daily`, and `inbound_delay` has to know
@@ -69,7 +52,7 @@ verbatim.
 first would force both to guess, and a guessed verdict wearing the appearance of
 evidence is the exact failure this system exists to prevent.
 
-### 3. Send out four hypotheses, in parallel
+### 2. Send out four hypotheses, in parallel
 
 Create **exactly four** subagents, one per competing explanation. Do not create
 three, do not create five, and do not do the work yourself and skip this step.
@@ -83,14 +66,14 @@ that the shortage is *not* real, and they do not coordinate.
 | `duplicate_indent` | Someone already raised this indent and it is still open |
 | `bom_change` | The part is superseded and the works is moving off it |
 
-Give each subagent the part number, the `projection` block from step 2, tell it
+Give each subagent the part number, the `projection` block from step 1, tell it
 which hypothesis it owns, **and name the single tool it needs**:
 
 | hypothesis | its one tool |
 |---|---|
 | `duplicate_indent` | `list_open_indents` |
 | `inbound_delay` | `list_consignments` |
-| `consumption_spike` | none — you already have `despiked_mean_daily` from step 2 |
+| `consumption_spike` | none — you already have `despiked_mean_daily` from step 1 |
 | `bom_change` | `get_part` |
 
 **Each subagent makes exactly one tool call and then returns its verdict.** Not
@@ -130,7 +113,7 @@ Required `evidence` shapes:
 - `consumption_spike` — `{"despiked_daily_draw": <number from the analysis script>}`
 - `bom_change` — `{"superseded_by": "PART-NO" or null}`
 
-### 4. Adjudicate
+### 3. Adjudicate
 
 Call `adjudicate(part_no, projection, verdicts)` with the projection block from
 the script and all four verdicts.
@@ -139,7 +122,7 @@ the script and all four verdicts.
 system. If you disagree with its answer, your verdicts were wrong — go back and
 re-check the evidence, do not argue with the result.
 
-### 5a. If the answer is `no_action`
+### 4a. If the answer is `no_action`
 
 Do not ask for approval. There is nothing to approve, because nothing should
 happen. Say so plainly, show the evidence that settles it, then call
@@ -149,7 +132,7 @@ server allocates one.
 A run that correctly decides to do nothing is a result, not a failure. Present
 it with the same confidence as an indent.
 
-### 5b. If the answer is `raise_indent`
+### 4b. If the answer is `raise_indent`
 
 Call `draft_indent(part_no, qty)` to get the exact payload, then present the
 **dossier** and stop. The dossier is not a summary — it is the working, and it
@@ -185,15 +168,18 @@ route to the same action. Record it with
 
 ## Economy
 
-The whole run must fit in under twenty model calls. Budget:
+The free-tier allowance is **twenty model requests per day**, and one run has to
+fit inside it with room to fail once. Budget:
 
-- 2 to read the record (part + log, then vendor lead times)
-- 2 for the sandbox: write `input.json`, run `analyse.py`
+- 1 for the sandbox call that fetches the record and computes everything
 - 1 to dispatch all four subagents at once
 - 4 to 8 for the subagents themselves
 - 1 for `adjudicate`
 - 1 for `draft_indent`
 - 1 to present the dossier
+- 3 for `raise_indent`, `send_vendor_mail` and `log_run`
+
+Every avoidable round trip is a run that does not finish today.
 
 Never re-read something you already have. Never call a tool to check a number
 the analysis already returned. If you catch yourself confirming, stop.

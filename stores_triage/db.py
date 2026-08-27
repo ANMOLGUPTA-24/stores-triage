@@ -54,6 +54,42 @@ def _row(sql: str, params: tuple = ()) -> dict[str, Any] | None:
 # ---------------------------------------------------------------------------
 
 
+def today() -> date:
+    """The database's idea of today, which is the only one that counts here.
+
+    Every date in this system is relative to Postgres CURRENT_DATE: the seed, the
+    consumption window, the consignment ETAs, the indent numbers. The Python
+    process can disagree - a container on UTC and a laptop on IST are on
+    different days for five and a half hours out of every twenty-four - and when
+    it does, adjudication compares an ETA against a "today" that the data was
+    never built around. That is a day of skew in the direction that throws away
+    valid cover, which is exactly the mistake this project exists to catch.
+    """
+    row = _row("SELECT CURRENT_DATE AS today")
+    assert row is not None  # a SELECT of a constant always returns a row
+    value = row["today"]
+    return value if isinstance(value, date) else date.fromisoformat(str(value))
+
+
+def consumption_window(days: int) -> tuple[str, str]:
+    """The exact window get_consumption_log queries, straight from the database.
+
+    Returned alongside the rows so the sandbox fits the draw rate over the window
+    that was actually asked for, rather than re-deriving it from its own clock
+    and quietly shifting every number.
+
+    `days` means exactly that many days ending today, which is why the query uses
+    a strict `>`: `>= CURRENT_DATE - 120` spans 121 calendar days, and dividing a
+    121-day total by a 120-day denominator understates the draw rate.
+    """
+    row = _row(
+        "SELECT (CURRENT_DATE - %s::int + 1) AS window_start, CURRENT_DATE AS window_end",
+        (days,),
+    )
+    assert row is not None
+    return str(row["window_start"]), str(row["window_end"])
+
+
 def list_alerts() -> list[dict[str, Any]]:
     return _rows(
         """
@@ -76,7 +112,7 @@ def get_consumption_log(part_no: str, days: int = 120) -> list[dict[str, Any]]:
         """
         SELECT consumed_on, qty, work_order, remarks
         FROM consumption_log
-        WHERE part_no = %s AND consumed_on >= CURRENT_DATE - %s::int
+        WHERE part_no = %s AND consumed_on > CURRENT_DATE - %s::int
         ORDER BY consumed_on
         """,
         (part_no, days),
