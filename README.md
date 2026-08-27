@@ -137,7 +137,7 @@ Either works; the analysis code is identical in both.
 `bwrap`, `socat` and `rg` are all on PATH. Two things are easy to miss:
 
 ```bash
-sudo apt install -y socat ripgrep
+sudo apt install -y socat ripgrep curl
 ```
 
 On Ubuntu 24.04, unprivileged user namespaces are restricted, so bubblewrap
@@ -161,6 +161,11 @@ Then start the harness with:
 ```bash
 ./scripts/start_harness.sh
 ```
+
+It pins the TrueForge version, because the workaround below depends on
+behaviour verified against TrueForge 0.1.4 and `@anthropic-ai/sandbox-runtime`
+0.0.71. Override with `TFY_VERSION=…` if you are re-verifying against a newer
+release; the script warns if the sandbox runtime it finds is not the tested one.
 
 Do not start it with a bare `npx @truefoundry/trueforge`. On Linux the local
 sandbox cannot reach the network as shipped, and the first thing it does is
