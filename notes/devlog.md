@@ -124,3 +124,17 @@ Two lines per session: what was built, what broke.
   read as consuming faster than it does. Window now passed explicitly.
 - 52 Python tests. Real numbers: 120 days observed, 4.45/day, p50 9.4 days.
 - README now carries the Qodo Code Review Evidence section the rules require.
+
+## 2026-08-27 — rehearsal caught a real bug
+- Quota had not reset at 10:00; a one-call probe consumed the last request, so
+  Run A 429'd immediately. Should have launched the run directly — a 429 costs
+  nothing, so the probe could only lose.
+- Rehearsed the whole pipeline with no model: MCP tools, bwrap sandbox, chart,
+  adjudicate. Both runs reach the correct verdict. Only the model's
+  orchestration is now untested.
+- Found while reading the rehearsal dates: _lands_in_time accepted an ETA in the
+  past, so a consignment overdue and still in transit counted as cover. The
+  agent would recommend no action citing a delivery that never arrived — the
+  failure that idles a locomotive. Now requires 0 <= days_away <= horizon.
+- Seed dates drift once the volume is old. Documented the re-seed and added it
+  to the pre-recording checklist.

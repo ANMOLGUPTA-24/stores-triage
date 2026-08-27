@@ -68,6 +68,15 @@ docker compose up -d --wait
 ```
 
 That brings up Postgres on port 5433 and loads `db/schema.sql` + `db/seed.sql`.
+
+The seed is `CURRENT_DATE`-relative, so the two demo scenarios stay correct on
+whatever day you run them — but only from the day the volume was created. If the
+database has been up for a while, consignment ETAs will have drifted into the
+past. Refresh it:
+
+```bash
+docker compose down -v && docker compose up -d --wait
+```
 Check it:
 
 ```bash

@@ -78,9 +78,17 @@ def _by_hypothesis(verdicts: list[Verdict]) -> dict[str, Verdict]:
 
 
 def _lands_in_time(eta: date | None, today: date, deadline_days: float) -> bool:
+    """Is this consignment still expected, and expected soon enough?
+
+    An ETA in the past on something not yet received means the consignment is
+    *late*, which is evidence for a shortage rather than cover against one.
+    Accepting it would let the agent recommend doing nothing on the strength of
+    a delivery that never turned up - the failure that idles a locomotive.
+    """
     if eta is None:
         return False
-    return (eta - today).days <= deadline_days
+    days_away = (eta - today).days
+    return 0 <= days_away <= deadline_days
 
 
 def adjudicate(
