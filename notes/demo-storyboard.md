@@ -91,6 +91,14 @@ the judgment are code you can read and test.
 
 ---
 
+## Before recording
+
+- [ ] **Re-seed the database.** `docker compose down -v && docker compose up -d --wait`
+      The seed is CURRENT_DATE-relative but fixed at volume-creation time, so an
+      old volume shows consignment ETAs in the past — CN-8821 "due" a date that
+      has already gone by reads badly on camera and changes what the agent says.
+- [ ] Confirm both runs still reach the right verdict after re-seeding
+
 ## Redaction checklist, before recording
 
 - [ ] No API keys on screen — TrueForge Settings tab closed

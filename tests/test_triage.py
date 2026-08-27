@@ -231,6 +231,47 @@ class TestRunBPaperShortage:
         assert "IND-2026-0731" in rec.what_would_change_my_mind
 
 
+class TestOverdueCover:
+    """A consignment past its ETA and still not received is late, not cover."""
+
+    def _overdue(self, days_late: int):
+        return [
+            {
+                "consignment_no": "CN-9104",
+                "qty": 300,
+                "eta": TODAY - timedelta(days=days_late),
+                "status": "in_transit",
+            }
+        ]
+
+    def test_an_overdue_consignment_does_not_stop_the_indent(self):
+        # Saying "no action, it is due 2026-08-28" two days after the 28th is
+        # exactly how a genuine shortage gets missed.
+        verdicts = negatives("inbound_delay") + [
+            Verdict(hypothesis="inbound_delay", verdict="positive",
+                    evidence={"consignments": self._overdue(2)})
+        ]
+        assert run_b(verdicts=verdicts).action == "raise_indent"
+
+    def test_an_overdue_linked_consignment_does_not_stop_the_indent(self):
+        verdicts = negatives("duplicate_indent") + [
+            Verdict(hypothesis="duplicate_indent", verdict="positive",
+                    evidence={"indent_no": "IND-2026-0731",
+                              "linked_consignment": self._overdue(2)[0]})
+        ]
+        rec = run_b(verdicts=verdicts)
+        assert rec.action == "raise_indent"
+        assert "IND-2026-0731" in rec.what_would_change_my_mind
+
+    def test_a_consignment_due_today_still_counts(self):
+        # Due today is not overdue; the boundary must not exclude it.
+        verdicts = negatives("inbound_delay") + [
+            Verdict(hypothesis="inbound_delay", verdict="positive",
+                    evidence={"consignments": self._overdue(0)})
+        ]
+        assert run_b(verdicts=verdicts).action == "no_action"
+
+
 class TestCoverThatArrivesTooLate:
     def test_consignment_landing_after_stockout_is_not_cover(self):
         verdicts = negatives("inbound_delay") + [
