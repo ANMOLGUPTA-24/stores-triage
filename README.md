@@ -349,6 +349,38 @@ between the query window's edges and those events, so a part untouched for a
 fortnight read as consuming faster than it does. The observation window is now
 passed explicitly.
 
+### The rest of the trail
+
+Every PR since has been reviewed the same way. The findings kept being real, and
+two more would have broken the demo outright:
+
+- [#5 — an overdue consignment is not cover](https://github.com/ANMOLGUPTA-24/stores-triage/pull/5):
+  flagged that the change named no demo beat. Chasing that turned up a worse
+  problem — the storyboard pinned consignment ETAs as literal dates, and the
+  re-seed the PR documented moves them, so the script was already wrong on the
+  page.
+- [#6 — the local sandbox never had network](https://github.com/ANMOLGUPTA-24/stores-triage/pull/6):
+  three findings on the launcher — an undocumented `ss` dependency, a
+  version-specific workaround floating on an unpinned `npx`, and a failed
+  startup leaking the harness process to bind the port later. All three applied.
+- [#7 — Run A end to end](https://github.com/ANMOLGUPTA-24/stores-triage/pull/7):
+  **"Gate instructions deadlock agent."** With `ask_user_question` disabled, the
+  gated call was the only route to a human — but three places still said never
+  to call `raise_indent` until a human had approved. Together those are a trap:
+  present the dossier, wait for an approval that cannot exist because nothing
+  was ever held, stop. Caught before it cost a run.
+- [#9 — publish the console](https://github.com/ANMOLGUPTA-24/stores-triage/pull/9):
+  a hard-coded font size outside the type tokens. Applied, and widened — fixing
+  only the flagged line would have left six more introduced by the same PR.
+  Both type scales are declared as tokens now.
+
+One finding was **not** applied: #9 also called the owner's GitHub handle in the
+Pages URL "personal data exposed". The reply is on the PR — the rule it cites
+protects secrets, third-party names and employer data, and a repository owner's
+own handle in that repository's own URL is none of those, nor removable, since
+GitHub derives both the clone URL and the `<account>.github.io` origin from it.
+Disagreeing in writing on the PR, rather than silently ignoring it, is the point.
+
 ## Licence
 
 MIT — see [LICENSE](LICENSE).
