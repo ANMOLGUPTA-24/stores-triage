@@ -122,8 +122,22 @@ it.
   that by reading the 413s rather than guessing, and it is not tunable — every
   feature toggle together saves ~1.5k.
 - **Gemini Flash free tier is 20 requests/day**, which is roughly one full run
-  per day. That shaped the whole design: the skill carries an explicit <20-call
+  per day. That shaped the whole design: the skill carries an explicit call
   budget and each subagent is allowed exactly one tool call.
+- **The limit that actually bit was per-minute, not per-day.** Four subagents
+  dispatching at once is eight requests in ten seconds, against a ceiling of
+  five per minute, and the harness has no backoff — so the turn died mid-run
+  every time, four requests short of the gate. We read that off the 429 itself
+  (`limit: 5`) rather than assuming it was the daily quota again.
+
+  | | Gemini free | OpenRouter `:free` |
+  |---|---|---|
+  | requests/minute | 5 | 20 |
+  | requests/day | 20 | 50 |
+
+  Moving to a free OpenRouter model is what let a run finish in one turn. Until
+  then we drove it as two turns, which the session model supports because the
+  verdicts survive a failed turn.
 - **The sandbox has no network**, so `pip install` inside it fails. Fixed by
   staging wheels on the host and starting the harness with `PIP_NO_INDEX=1
   PIP_FIND_LINKS=…`.
