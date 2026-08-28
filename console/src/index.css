@@ -28,9 +28,24 @@
   --gate-bg: #241d0e;
   --gate-line: #4a3b18;
 
+  /* The operator scale. Flat on purpose: tool output must never compete with
+     the agent, so there is one display, one body, one mono and nothing else. */
   --display: 17px;
   --body: 13px;
   --mono: 12px;
+
+  /* The front-door scale, used only by the landing (.landing). A stranger with
+     thirty seconds needs a first thing to read, which the operator scale
+     deliberately refuses to provide. Declared here so both ramps are visible in
+     one place and neither is a magic number at the point of use. */
+  --lede: 30px;
+  --figure: 38px;
+  --figure-unit: 19px;
+  --stat: 26px;
+  --lead-in: 15px;
+
+  /* Panel and section labels, the one size shared by both scales. */
+  --label: 10px;
 
   --gap: 12px;
 }
@@ -154,7 +169,7 @@ body {
   color: var(--ink-faint);
   text-transform: uppercase;
   letter-spacing: 0.07em;
-  font-size: 10px;
+  font-size: var(--label);
   display: flex;
   gap: 8px;
   align-items: center;
@@ -184,7 +199,7 @@ body {
 .activity-row .when {
   color: var(--ink-faint);
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-  font-size: 10px;
+  font-size: var(--label);
   padding-top: 2px;
 }
 
@@ -341,7 +356,7 @@ body {
   color: var(--ink-faint);
   text-transform: uppercase;
   letter-spacing: 0.07em;
-  font-size: 10px;
+  font-size: var(--label);
   margin-bottom: 5px;
 }
 
@@ -441,7 +456,7 @@ button:disabled {
 /* Deliberately neutral. The accent belongs to blocked-on-human and nothing
    else, so the replay label must not compete with it. */
 .replay {
-  font-size: 0.75rem;
+  font-size: var(--mono);
   letter-spacing: 0.02em;
   padding: 0.1rem 0.4rem;
   border: 1px solid var(--line);
@@ -528,7 +543,7 @@ button:disabled {
 
 .landing .headline {
   margin: 0;
-  font-size: 30px;
+  font-size: var(--lede);
   line-height: 1.2;
   font-weight: 600;
   letter-spacing: -0.01em;
@@ -537,14 +552,14 @@ button:disabled {
 }
 .landing .sub {
   margin: 0;
-  font-size: 15px;
+  font-size: var(--lead-in);
   color: var(--ink-dim);
   max-width: 78ch;
   text-wrap: pretty;
 }
 .landing .lab {
   font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
-  font-size: 10px;
+  font-size: var(--label);
   text-transform: uppercase;
   letter-spacing: 0.07em;
   color: var(--ink-faint);
@@ -594,13 +609,13 @@ button:disabled {
 .pick-name {
   grid-column: 1;
   grid-row: 2;
-  font-size: 17px;
+  font-size: var(--display);
   font-weight: 600;
 }
 .pick-days {
   grid-column: 2;
   grid-row: 1 / span 2;
-  font-size: 26px;
+  font-size: var(--stat);
   font-weight: 600;
   line-height: 1;
   justify-self: end;
@@ -634,13 +649,13 @@ button:disabled {
 }
 .figures .fig {
   display: block;
-  font-size: 38px;
+  font-size: var(--figure);
   font-weight: 600;
   line-height: 1;
   letter-spacing: -0.02em;
 }
 .figures .unit {
-  font-size: 19px;
+  font-size: var(--figure-unit);
   font-weight: 500;
 }
 .figures .cap {

@@ -28,13 +28,31 @@ adjudicates between them. Differential diagnosis, not a work queue.
 
 ## Status
 
-Day 3 of 6. Working: Postgres schema + synthetic seed, the `stores-mcp` tool
-server, the adjudication logic, the sandbox analysis and chart, the
-`stores-triage` skill, and the operator console. 78 tests (46 Python, 32 TS).
-Both demo runs reach the correct decision end to end over MCP, and both render
-correctly in the console against a recorded event stream.
-Not wired yet: the console against a live TrueForge turn.
-This section stays honest as the project moves.
+**Both runs have been executed live** against a real TrueForge harness, a real
+MCP server over Postgres, and a real bubblewrap sandbox. 97 tests (65 Python,
+32 TS).
+
+**Run A — TRB-4417.** Sandbox up in 18s; `analyse.py` pulls the record itself
+over Code Mode and computes 4.48/day, dry in 9.4 days (7.7 at the fast end)
+against a 29.8-day p80 lead time. Four subagents, four verdicts, then the
+harness holds the call:
+
+```
+*** GATE HELD ***    raise_indent{part_no: TRB-4417, qty: 200}
+                     nothing written: no indent, no run-log row
+approved          -> IND-2026-0732
+*** SECOND GATE ***  send_vendor_mail{indent_no: IND-2026-0732}
+```
+
+Approving the indent does not pre-approve the mail, and the `indent_no` the
+second gate carries is the one `raise_indent` actually returned.
+
+**Run B — BRK-2290.** One unbroken turn, 101 seconds, ending `no_action`: the
+indent is already open and the consignment is in transit inside the stockout
+window. No gate, no approval, no new indent — and `run_log` records `no_action`
+as an outcome rather than an error.
+
+Not done: the demo video. This section stays honest as the project moves.
 
 ## The two runs
 
