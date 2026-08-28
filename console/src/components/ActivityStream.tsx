@@ -39,6 +39,13 @@ export function ActivityStream({ state }: { state: ConsoleState }) {
             Waiting for a stock alert.
             <br />
             Nothing has happened yet.
+            {/* On a public page this panel is the first thing read, and
+                "nothing has happened" on its own reads as broken rather than
+                ready. Say where the run comes from - an operator watching a
+                live queue already knows, a visitor does not. */}
+            <br />
+            <br />
+            Pick one of the two alerts, top right, to replay a run.
           </div>
         ) : (
           state.activity.map((item, i) => (
