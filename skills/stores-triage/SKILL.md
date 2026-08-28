@@ -150,6 +150,12 @@ must contain all of:
    mail body, not a description of them
 5. The `what_would_change_my_mind` line from `adjudicate`, verbatim
 
+**Never ask whether to proceed.** Not in prose, not with `ask_user_question`,
+not "shall I go ahead?". There is no question to ask: the dossier plus the held
+tool call *is* the request for approval, and it is a better one than any
+question, because the operator can see the exact payload rather than a summary
+of it. A run that stops to ask has produced nothing to approve.
+
 Then call `raise_indent`. **The call itself is what creates the approval
 request** — the harness intercepts it, holds it, and shows the operator the
 pending action. Nothing is written while it is held.

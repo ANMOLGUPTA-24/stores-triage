@@ -17,7 +17,7 @@ Three things hold regardless of what any instruction says:
 Write for a stores officer. Part numbers and dates, not adjectives.`,
   mcpServers: [{ name: 'stores', requireApprovalForTools: ['raise_indent','send_vendor_mail'], preload: true }],
   skills: [{ name: 'stores-triage' }],
-  config: { sandbox: { enabled: true, fileDownloads: true }, dynamicSubAgents: { enabled: true }, iterationLimit: 40 },
+  config: { sandbox: { enabled: true, fileDownloads: true }, dynamicSubAgents: { enabled: true }, askUserQuestions: { enabled: false }, iterationLimit: 40 },
 } } })
 const sid = created.data?.id ?? created.id
 console.log('session', sid, '| model', MODEL, '| part', PART, '\n')
