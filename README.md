@@ -13,6 +13,27 @@ The agent investigates, then either raises the indent and mails the vendor —
 **behind a human approval gate** — or tells you to do nothing, and shows its
 working either way.
 
+## ▶ Drive it yourself — https://anmolgupta-24.github.io/stores-triage/
+
+No install, no account, no backend. That page is the operator console replaying
+two runs that actually happened, one event at a time, exactly as a live turn
+feeds it — so the activity stream, the four subagents, the approval gate and the
+dossier are all yours to click through.
+
+Two alerts. **9.3 days of stock against 9.4.** From the alert alone they are the
+same problem:
+
+- **`TRB-4417`** — genuine. Watch it reach the gate and stop, with the working
+  attached: the numbers, the chart, the exact indent and mail payload, and one
+  line saying what would change its mind. Approve it and a second gate holds the
+  vendor mail separately.
+- **`BRK-2290`** — looks identical, and the agent correctly does **nothing**. No
+  gate, no approval, no indent — because the stock is already on order. That run
+  is the point of the whole project.
+
+Takes about a minute for both. The live agent is deliberately *not* hosted —
+see [The console](#the-console) for why.
+
 ## The idea
 
 **The agent never asks for permission bare.** An approval is only meaningful if

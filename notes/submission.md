@@ -6,6 +6,13 @@ and a real sandbox.
 
 ---
 
+## Try it before reading any of this
+
+**https://anmolgupta-24.github.io/stores-triage/** — no install, no account. The
+operator console replaying both runs, one event at a time. Click `TRB-4417` to
+watch it stop at the approval gate with the working attached; click `BRK-2290`
+to watch it correctly do nothing. About a minute for both.
+
 ## One line
 
 An agent that decides whether a spare-part stock alert is a real shortage or a
