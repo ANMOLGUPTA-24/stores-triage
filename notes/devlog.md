@@ -303,3 +303,41 @@ Reading the run back was worth more than the run.
   and the `indent_no` it carries is the one `raise_indent` actually returned.
   Stopped there rather than sending mail.
 - 19 of 20 requests for the day. Run B still to do.
+
+## 2026-08-28 (day 5, evening) — Run B, and a model bake-off nobody planned
+
+- Set up OpenRouter. The free tier is 20 requests/minute and 50/day against
+  Gemini's 5 and 20, and it was the per-minute number that mattered: four
+  subagents at once is eight requests in ten seconds.
+- Three models, three different failures, which turned into a useful finding:
+
+      nemotron-3-ultra  ignored the skill completely. No subagents, no
+                        analyse.py, no adjudicate - it fetched the evidence
+                        itself and tried to write its own numpy analysis in a
+                        heredoc. Also "Service temporarily overloaded" twice.
+      glm-5-2           upstream 429 within one second, twice.
+      minimax-m3        read SKILL.md and the scripts first, then followed the
+                        procedure exactly.
+
+  Worth saying plainly: the deterministic core does not care which model runs,
+  but whether the *demo* works depends entirely on the model following the
+  skill. Gemini did, MiniMax did, Nemotron did not. That is a model-selection
+  finding, not a prompt one - the skill text was identical in all three.
+
+- **Run B, live, one unbroken turn, 101 seconds:**
+
+      analyse.py in the sandbox -> four subagents at once ->
+      adjudicate -> no_action
+
+      reason      BRK-2290 is already on order. Indent IND-2026-0731 is open
+                  and consignment CN-9104 (300 nos) is in transit, due
+                  2026-08-30, inside the 8-day stockout window.
+      ruled out   consumption_spike, bom_change
+      change      If CN-9104 slips past 2026-08-30 or is short-shipped, this
+                  becomes a genuine shortage.
+
+  **NO GATE.** Nothing to approve, because nothing should happen. `run_log`
+  holds one row, `BRK-2290 | no_action`, and no new indent was raised.
+
+  Both runs are now real: TRB-4417 raises and holds at the gate, BRK-2290 does
+  nothing and says why. From the alert alone they were the same problem.
