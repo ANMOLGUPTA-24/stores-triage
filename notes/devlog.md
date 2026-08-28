@@ -138,3 +138,132 @@ Two lines per session: what was built, what broke.
   failure that idles a locomotive. Now requires 0 <= days_away <= horizon.
 - Seed dates drift once the volume is old. Documented the re-seed and added it
   to the pre-recording checklist.
+
+## 2026-08-28 (day 5, small hours) — the local sandbox never had network
+
+- Re-seeded the database. Fresh ETAs: CN-8821 unconfirmed +2 days (Run A),
+  CN-9104 in transit +3 days (Run B). The two runs still look identical from the
+  alert alone, which is the whole demo.
+- Merged PR #5 after Qodo's one finding. It flagged that the PR changed triage
+  behaviour without naming a demo beat; writing that link down exposed a worse
+  problem, which is that the storyboard pinned literal dates. It said CN-9104
+  "lands 28 Aug" while the fresh seed says the 30th. Beats have IDs now and the
+  dates are placeholders read off the database on the day.
+
+- **Root-caused the sandbox failure that has been blamed on pip all week.**
+  The story was "the sandbox has no network, so stage wheels and set
+  PIP_NO_INDEX". Both halves were wrong.
+
+  1. The harness builds the sandbox child env from scratch —
+     `childEnv = {...commandEnv(...)}` — so `PIP_NO_INDEX` and `PIP_FIND_LINKS`
+     set on the harness process never reach the sandbox at all. The wheelhouse
+     was never being consulted. What was verified on day 3 was bwrap by hand,
+     not the harness, so nobody noticed.
+  2. The sandbox is *supposed* to have network: `pypi.org` and
+     `files.pythonhosted.org` are both on TrueForge's own allowed-domain list.
+
+  The real fault is a filesystem/network mismatch. SRT reaches its filtering
+  proxy over a Unix socket at `os.tmpdir()/claude-http-<id>.sock`, but
+  TrueForge's `ALLOW_READ_BY_PLATFORM.linux` does not include `/tmp`. The
+  sandboxed process cannot see the socket, so every connection dies with
+  `Proxy CONNECT aborted`, so `pip install pydantic` — the first thing a sandbox
+  does — always fails. On Linux the local sandbox cannot start, and skills go
+  with it, because skills require a sandbox.
+
+  Proved it rather than guessed it: drove SRT's own CLI with TrueForge's exact
+  filesystem policy. `allowRead: ["/"]` gives `pypi HTTP 200`; the harness's real
+  policy gives `Proxy CONNECT aborted`; adding `/tmp` to the same policy gives
+  `HTTP 200` again. Three runs, one variable, no model involved.
+
+- Fixed without patching the package. TrueForge adds one more path to allow-read
+  at runtime: the Code Mode socket parent, which it computes as
+  `os.tmpdir()/tf_cms` and then realpath()s. Set `TMPDIR` to a short directory we
+  own and make `tf_cms` inside it a symlink back to its own parent, and the
+  allowed path becomes `TMPDIR` itself — which is where the proxy socket lives.
+  The link has to be made after boot, because TrueForge rm -rf's that path on
+  startup and only reads it when the first sandbox is created. All of it is in
+  `scripts/start_harness.sh` with the reasoning written above it.
+- Cost of finding this the expensive way: **fifteen** model requests out of the
+  day's twenty, spent on an agent retrying a sandbox that could never come up.
+  (I first said six; counting `model.message` events in the session put it at
+  fifteen for the broken run and six for the good one, which is the whole day.)
+  A watchdog now kills a run on the first `Sandbox initialization failed`, so a
+  broken sandbox costs one request instead of six.
+
+- **First live run that reached the sandbox.** `*** SANDBOX UP ***` at 19s, then
+  the skill read, `get_part`, `get_consumption_log`, `get_vendor_lead_times`,
+  `input.json` written, and `analyse.py` run inside bwrap. The sandbox installed
+  pydantic *and* matplotlib from pypi on its own, which is the proof the network
+  fix is real and not a story.
+
+  Numbers computed in the sandbox, not by the model:
+
+      mean_daily_draw        4.48/day     over 120 observed days
+      days_to_stockout       9.4  (p10 7.7, p90 11.4)
+      lead_time_p50 / p80    23.0 / 29.8  over 14 completed orders
+      vendor_runs_late       true         (promised 21)
+      spike_days             []           so consumption_spike has nothing to stand on
+
+  Chart written and recovered to `notes/evidence/runA-chart.png`: a 20-day
+  stretch with no stock between running dry and the vendor delivering. That gap
+  is the argument for ordering now, and it is drawn rather than asserted.
+
+- Then 429: 20 requests/day exhausted, about six of them wasted on the broken
+  sandbox before the watchdog existed. The run stopped one step before
+  dispatching the four subagents.
+- The storyboard said "~22-day gap"; the fresh seed makes it 20. Made that a
+  placeholder too - the chart prints the number, so read it off the chart.
+
+## 2026-08-28 (day 5) — what the first live run exposed
+
+Reading the run back was worth more than the run.
+
+- **The agent retyped all 119 consumption rows into a heredoc.** It had just read
+  them out of `get_consumption_log` and typed them again into a Python literal.
+  I diffed the transcription against the database expecting to find the bug that
+  explained a number mismatch. It was byte-perfect: 119 rows, same total, no
+  duplicates. So the model copied it correctly this time - but the design still
+  routes every row of evidence through the one component that is not allowed to
+  be the source of a number, and nothing would have caught it if it had slipped.
+
+  Fixed properly: the sandbox now fetches its own record over Code Mode.
+  TrueForge drops an MCP client into the sandbox and points `TFY_MCP_SOCK` at it,
+  so `analyse.py --part-no TRB-4417 --days 120` pulls the part, the log and the
+  lead times itself. The record never passes through the model at all, and steps
+  1 and 2 of the skill collapse into one call.
+
+- **The real cause of the mismatch was a clock.** The sandbox reported 4.48/day
+  and the same code on the host reported 4.45/day from identical rows. Three
+  different notions of "today" were in play:
+
+      Postgres (container, UTC)   2026-08-27
+      sandbox (UTC)               2026-08-27
+      host / MCP server (IST)     2026-08-28
+
+  Every date in this system is relative to Postgres `CURRENT_DATE` - the seed,
+  the consumption window, the ETAs, the indent numbers - but `analyse.py`
+  rebuilt its window from the local clock and `adjudicate` compared ETAs against
+  `date.today()` on the host. For the five and a half hours a day that IST and
+  UTC disagree, adjudication was a day ahead of the data. After the overdue-cover
+  fix that skew points the wrong way: it discards cover that is still valid, so a
+  demo recorded late in the evening could have flipped Run B into an indent.
+
+  There is one source of truth now, `db.today()`, and `get_consumption_log`
+  returns the exact `window_start` / `window_end` it queried so the sandbox fits
+  over the window that was actually asked for.
+
+- Found while fixing that: `consumed_on >= CURRENT_DATE - 120` spans **121**
+  calendar days, so a 121-day total was being divided by a 120-day denominator.
+  Strict `>` now, and `days` means exactly that many days ending today.
+
+- Host and sandbox now agree exactly: 4.48/day either side. Model-free rehearsal
+  of both runs against the real MCP server:
+
+      TRB-4417  4.48/day, p50 9.4d, lead p80 29.8d -> RAISE_INDENT (critical, 200)
+                counterfactual names CN-8821, ETA 2026-08-29, unconfirmed
+      BRK-2290  5.79/day, p50 9.5d, lead p80 23.0d -> NO_ACTION
+                cites CN-9104, in transit, due 2026-08-30
+
+  9.4 against 9.5 days. Still indistinguishable from the alert alone, which is
+  the entire premise of the demo.
+- 65 tests.

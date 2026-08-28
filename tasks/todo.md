@@ -51,8 +51,14 @@ Every item below advances a beat in CLAUDE.md §0b. Anything that doesn't, isn't
 - [x] Groq free tier (8k TPM) cannot host TrueForge at all
 - [x] Gemini Pro preview: no free tier (limit 0)
 - [x] Gemini Flash: 20 requests/day — one full run per day
-- [ ] **First complete live Run A** — blocked until quota resets (~12:30 IST)
-- [ ] Consider a second free bucket (OpenRouter) for more attempts/day
+- [x] Root-caused why the local sandbox never worked: TrueForge's Linux
+      allow-read list omits /tmp, where SRT puts its proxy socket. Fixed in
+      scripts/start_harness.sh without patching the package. PR #6.
+- [x] **Sandbox reached live** — agent ran analyse.py under bwrap, sandbox
+      installed pydantic + matplotlib itself, real chart out
+- [ ] **Rest of Run A** — subagents, adjudicate, the gate. Got one step short;
+      429 at 20 requests/day. Never yet exercised live.
+- [ ] Second free bucket (OpenRouter) — one run per day is not enough to finish
 
 ## Day 4 — Sat 29 Aug — Run B, polish, record
 - [ ] Run B end to end; "no action" lands in the run log as an outcome

@@ -99,6 +99,34 @@ You will also need, configured inside TrueForge (Settings):
 - a **model provider** key (Settings -> Models),
 - a **sandbox**.
 
+### Model provider, and why the free tier shapes the design
+
+A bare TrueForge agent sends about **67,000 tokens per request** before this
+project adds anything — our MCP server and skill add roughly 2,300 more. That
+number decides which free tiers can host it at all:
+
+| provider | free limit | usable? |
+|---|---|---|
+| Groq | 8,000 tokens/min | no — one request exceeds the minute budget |
+| Gemini 3.1 Pro preview | limit 0 | no — paid only |
+| Gemini 3.6 Flash | 250K TPM, **20 requests/day** | one run per day, if nothing is wasted |
+| OpenRouter | varies by model, ~50/day typical | yes, and it allows retries |
+
+Requests, not tokens, are the scarce resource, and a full run costs on the order
+of a dozen. That is why the skill carries an explicit budget, why each subagent
+is allowed exactly one tool call, and why the analysis step fetches its own
+record instead of making a round trip per table.
+
+To add OpenRouter: Settings -> Models -> Add custom provider, base URL
+`https://openrouter.ai/api/v1`, and pick a model that supports **tool calling** —
+this agent is nothing but tool calls. Then:
+
+```bash
+cd console && TF_MODEL=openrouter/<model-id> node scripts/run.mjs
+```
+
+`TF_PART` selects the alert (`TRB-4417` for Run A, `BRK-2290` for Run B).
+
 ### Sandbox
 
 Either works; the analysis code is identical in both.
@@ -109,7 +137,7 @@ Either works; the analysis code is identical in both.
 `bwrap`, `socat` and `rg` are all on PATH. Two things are easy to miss:
 
 ```bash
-sudo apt install -y socat ripgrep
+sudo apt install -y socat ripgrep curl
 ```
 
 On Ubuntu 24.04, unprivileged user namespaces are restricted, so bubblewrap
@@ -128,14 +156,43 @@ PROFILE
 sudo apparmor_parser -r /etc/apparmor.d/bwrap
 ```
 
-The sandbox has no network, and TrueForge builds a virtualenv inside it that
-wants `pydantic`. Stage the wheels once and point pip at them offline:
+Then start the harness with:
 
 ```bash
-mkdir -p ~/.trueforge-wheels
-python3 -m pip download --dest ~/.trueforge-wheels 'pydantic>=2,<3'
-PIP_NO_INDEX=1 PIP_FIND_LINKS=~/.trueforge-wheels npx @truefoundry/trueforge
+./scripts/start_harness.sh
 ```
+
+It pins the TrueForge version, because the workaround below depends on
+behaviour verified against TrueForge 0.1.4 and `@anthropic-ai/sandbox-runtime`
+0.0.71. Override with `TFY_VERSION=…` if you are re-verifying against a newer
+release; the script warns if the sandbox runtime it finds is not the tested one.
+
+Do not start it with a bare `npx @truefoundry/trueforge`. On Linux the local
+sandbox cannot reach the network as shipped, and the first thing it does is
+`pip install pydantic` into its own virtualenv — so it never starts, and skills
+go with it, because skills require a sandbox.
+
+The cause is a mismatch inside the harness rather than a missing package. SRT
+reaches its filtering proxy over a Unix socket at
+`os.tmpdir()/claude-http-<id>.sock`, but TrueForge's Linux allow-read list
+
+```
+/usr/bin /bin /usr/sbin /sbin /lib /lib64 /usr/lib /usr/lib64
+/usr/local /etc /dev /proc /sys   + the SRT vendor directory
+```
+
+does not include `/tmp`. The sandboxed process cannot see the socket, so every
+outbound connection fails with `Proxy CONNECT aborted` — even though `pypi.org`
+and `files.pythonhosted.org` are both on TrueForge's own allowed-domain list.
+
+`scripts/start_harness.sh` works around it without patching the package, by
+pointing `TMPDIR` at a short directory you own and making TrueForge's Code Mode
+socket parent (`$TMPDIR/tf_cms`, which the harness realpath()s and adds to
+allow-read) resolve back to that directory. The full reasoning is in the script.
+
+Setting `PIP_NO_INDEX` / `PIP_FIND_LINKS` on the harness process does **not**
+help: the harness builds the sandbox's environment from scratch, so those
+variables never reach it.
 
 Run the tests:
 

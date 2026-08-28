@@ -74,7 +74,19 @@ def get_consumption_log(part_no: str, days: int = 120) -> dict[str, Any]:
     from the log by code, never estimated from a description of it.
     """
     rows = db.get_consumption_log(part_no, days)
-    return {"part_no": part_no, "days": days, "rows": rows, "row_count": len(rows)}
+    window_start, window_end = db.consumption_window(days)
+    return {
+        "part_no": part_no,
+        "days": days,
+        # The window the query actually used. The log only holds days something
+        # moved, so the sandbox cannot infer the quiet stretches at either edge -
+        # and inferring them from its own clock puts it on a different day to the
+        # database whenever the two are in different timezones.
+        "window_start": window_start,
+        "window_end": window_end,
+        "rows": rows,
+        "row_count": len(rows),
+    }
 
 
 @mcp.tool(annotations=READ_ONLY)
@@ -166,7 +178,7 @@ def adjudicate(
             )
             for v in verdicts
         ],
-        today=date.today(),
+        today=db.today(),
     )
     return {
         "action": rec.action,
@@ -189,7 +201,7 @@ def draft_indent(part_no: str, qty: int) -> dict[str, Any]:
     if part is None:
         raise ValueError(f"no such part: {part_no}")
     vendor = db.get_vendor_for_part(part_no) or {}
-    needed_by = date.today().isoformat()
+    needed_by = db.today().isoformat()
     msg = mailer.compose(
         indent_no="(allocated on approval)",
         part_no=part_no,

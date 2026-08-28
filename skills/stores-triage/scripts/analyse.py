@@ -6,19 +6,26 @@ writes a PNG. Deliberately standard-library only apart from the chart, so it
 works in a bare sandbox and degrades to numbers-without-a-picture rather than
 failing outright when matplotlib is missing.
 
-    python analyse.py input.json --chart chart.png
+    python analyse.py --part-no TRB-4417 --days 120 --chart chart.png
+    python analyse.py input.json --chart chart.png      # offline, pre-pulled
 
-input.json:
-    {"part": {...}, "consumption_rows": [...], "lead_time_rows": [...]}
+Given --part-no it fetches its own inputs over Code Mode, so the record never
+passes through the model. That matters: the first live run had the agent retype
+all 120 consumption rows into a heredoc from what it had read a moment earlier,
+which is a transcription of the evidence by the one component in the system that
+is not allowed to be the source of a number.
 """
 
 from __future__ import annotations
 
 import argparse
 import json
+import os
+import subprocess
 import sys
 from datetime import date, timedelta
 from pathlib import Path
+from typing import Any, Callable
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
@@ -28,6 +35,62 @@ from projection import (  # noqa: E402  (path set above)
     project_stockout,
     summarise,
 )
+
+
+DEFAULT_MCP_CLIENT = "mcp-client/mcp_client.py"
+
+
+def _unwrap(value: Any) -> Any:
+    """FastMCP returns list-valued tools as {"result": [...]}; dicts come bare."""
+    if isinstance(value, dict) and set(value) == {"result"}:
+        return value["result"]
+    return value
+
+
+def mcp_call(tool: str, arguments: dict[str, Any], *, server: str = "stores") -> Any:
+    """Invoke one MCP tool from inside the sandbox, over the Code Mode socket.
+
+    The harness drops a client into the sandbox and points TFY_MCP_SOCK at it.
+    Destructive tools are refused here by the client itself, which is what keeps
+    the approval gate in the harness where a human can see it.
+    """
+    client = os.environ.get("TFY_MCP_CLIENT", DEFAULT_MCP_CLIENT)
+    if not Path(client).exists():
+        raise SystemExit(
+            f"MCP client not found at {client}. Run this inside the sandbox, or "
+            f"pass a pre-pulled input JSON file instead of --part-no."
+        )
+    proc = subprocess.run(
+        [sys.executable, client, "call-tool", server, tool, json.dumps(arguments)],
+        capture_output=True,
+        text=True,
+    )
+    if proc.returncode != 0:
+        raise SystemExit(f"MCP call {server}/{tool} failed: {proc.stderr.strip()}")
+    return _unwrap(json.loads(proc.stdout))
+
+
+def build_payload(
+    part_no: str,
+    days: int,
+    call: Callable[[str, dict[str, Any]], Any] = mcp_call,
+) -> dict[str, Any]:
+    """Pull everything the analysis needs. Three calls, none of them via the model."""
+    part = call("get_part", {"part_no": part_no})
+    log = call("get_consumption_log", {"part_no": part_no, "days": days})
+    lead = call("get_vendor_lead_times", {"vendor_code": part["vendor_code"]})
+    return {
+        "part": part,
+        "consumption_rows": log["rows"],
+        "window_days": days,
+        # Carry the window the database actually queried. Re-deriving it from
+        # this process's clock would put the fit on a different day whenever the
+        # sandbox and the database disagree about the date, which they do for
+        # five and a half hours out of every twenty-four on an IST laptop.
+        "window_start": log.get("window_start"),
+        "window_end": log.get("window_end"),
+        "lead_time_rows": lead,
+    }
 
 
 def draw_chart(path: str, *, part_no: str, mean_daily: float, stock_on_hand: int, stockout, lead) -> bool:
@@ -95,20 +158,39 @@ def draw_chart(path: str, *, part_no: str, mean_daily: float, stock_on_hand: int
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("input", help="JSON file: part, consumption_rows, lead_time_rows")
+    parser.add_argument(
+        "input", nargs="?", help="JSON file: part, consumption_rows, lead_time_rows"
+    )
+    parser.add_argument("--part-no", help="fetch the record over Code Mode instead")
+    parser.add_argument("--days", type=int, default=120, help="consumption window")
     parser.add_argument("--chart", help="write a PNG here")
     args = parser.parse_args()
 
-    payload = json.loads(Path(args.input).read_text())
+    if bool(args.input) == bool(args.part_no):
+        parser.error("give either an input JSON file or --part-no, not both")
+
+    payload = (
+        build_payload(args.part_no, args.days)
+        if args.part_no
+        else json.loads(Path(args.input).read_text())
+    )
     part = payload["part"]
-    # The rows only cover days something moved. Reconstruct the window that was
-    # actually queried so quiet days at either edge still count as zero draw.
-    window_days = payload.get("window_days")
-    today = date.today()
+    # The rows only cover days something moved, so the window has to come from
+    # somewhere else for the quiet days at either edge to count as zero draw.
+    # Prefer the bounds the database reported; fall back to this clock only when
+    # the payload predates that, and say so rather than silently differing.
+    window_start = payload.get("window_start")
+    window_end = payload.get("window_end")
+    if not (window_start and window_end):
+        window_days = payload.get("window_days")
+        if window_days:
+            today = date.today()
+            window_start = (today - timedelta(days=window_days - 1)).isoformat()
+            window_end = today.isoformat()
     draw = fit_draw_rate(
         payload["consumption_rows"],
-        window_start=today - timedelta(days=window_days - 1) if window_days else None,
-        window_end=today if window_days else None,
+        window_start=window_start,
+        window_end=window_end,
     )
     lead = fit_lead_time(payload["lead_time_rows"])
     stockout = project_stockout(part["stock_on_hand"], draw)
@@ -134,8 +216,10 @@ def main() -> int:
         )
 
     print(json.dumps({
+        "part": part,
         "projection": {k: v for k, v in summary.items() if k not in ("part_no", "stock_on_hand")},
         "evidence": evidence,
+        "window": {"start": window_start, "end": window_end},
         "chart": args.chart if charted else None,
         "chart_skipped_reason": None if charted or not args.chart else "matplotlib not installed",
     }, indent=2))
