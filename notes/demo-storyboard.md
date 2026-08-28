@@ -21,8 +21,18 @@ across three systems. Raise a duplicate indent against stock already in transit
 and the works pays expedite rates on stock it already owns. Miss a real shortage
 and a locomotive sits idle.
 
-Point at the two rows: **9.3 days and 9.4 days of stock left. From the alert
+Point at the two rows: **9.4 days and 9.5 days of stock left. From the alert
 alone these are the same problem.** They are not.
+
+Figures for this seed, computed live in the sandbox — quote these, do not
+estimate:
+
+| | TRB-4417 (Run A) | BRK-2290 (Run B) |
+|---|---|---|
+| draw | 4.48/day | 5.79/day |
+| runs dry | 9.4 days (7.7 at the fast end) | 9.5 days (7.9) |
+| vendor p80 | 29.8 days | 23.0 days |
+| exposure if nothing is done | 20 days with no stock | covered by CN-9104 |
 
 ## 0:25-1:05 — Run A, the investigation
 
@@ -45,11 +55,11 @@ Screen: the dossier card. Let it sit. Do not scroll fast.
 Show, in this order:
 - **G1** The header goes amber — **"blocked on you"** in the top bar at the same time
 - **G2** The numbers, and say they came out of Python in the sandbox, not the model
-- **G3** The chart — the ⟨gap⟩-day stretch with no stock, shaded, between running
-  dry and the vendor delivering (the chart labels it; read the number off it)
+- **G3** The chart — the **20-day** stretch with no stock, shaded, between
+  running dry and the vendor delivering (the chart labels it)
 - **G4** Scroll to the **full mail body**, verbatim, not a summary
-- **G5** The counterfactual: *"if CN-8821 is confirmed and lands by ⟨CN-8821 ETA⟩,
-  do not raise this indent"*
+- **G5** The counterfactual: *"if CN-8821 is confirmed and lands by
+  **2026-08-30**, do not raise this indent"*
 
 Say: the harness gives us the pause. The dossier is ours. An approval is only
 worth anything if the human can check it in five seconds — so the gate carries
@@ -67,7 +77,7 @@ Say up front: this one looks identical. Same shortfall, same ten days.
 Beats:
 - **B1** Same four subagents dispatched
 - **B2** `duplicate_indent` **positive** — IND-2026-0731, raised seven days ago
-- **B3** `inbound_delay` **positive** — CN-9104, in transit, lands ⟨CN-9104 ETA⟩
+- **B3** `inbound_delay` **positive** — CN-9104, in transit, lands **2026-08-31**
 - **B4** Recommendation: **no action**
 
 Point at the screen and say: **there is no amber anywhere, and no Approve
@@ -102,14 +112,38 @@ than a clone, a Postgres, a harness and an API key.
 
 ## Before recording
 
-Every date in this script is written as ⟨placeholder⟩ on purpose. The seed is
-`CURRENT_DATE`-relative, so the ETAs are whatever the database says on the day
-you record. Read them off the screen; do not read them off this page.
+**The dates below are filled from the seed created on 2026-08-28.** They are
+correct as long as you do not re-seed. The seed is `CURRENT_DATE`-relative, so
+re-seeding on a different day shifts every one of them — the offsets, which do
+not move, are:
 
-- [ ] **Re-seed the database.** `docker compose down -v && docker compose up -d --wait`
-      The seed is CURRENT_DATE-relative but fixed at volume-creation time, so an
-      old volume shows consignment ETAs in the past — CN-8821 "due" a date that
-      has already gone by reads badly on camera and changes what the agent says.
+| | offset from the seed day | value for the 2026-08-28 seed |
+|---|---|---|
+| CN-8821 ETA (Run A, unconfirmed) | seed + 2 | **2026-08-30** |
+| CN-9104 ETA (Run B, in transit) | seed + 3 | **2026-08-31** |
+| IND-2026-0731 raised (Run B) | seed − 7 | **2026-08-21** |
+
+If you re-seed, re-run the query in the checklist below and adjust.
+
+- [ ] **Check the database is clean, and re-seed only if it is not.**
+
+      ```
+      docker exec stores-triage-db psql -U stores -d stores \
+        -c "select indent_no, part_no from open_indents" -c "select count(*) from run_log"
+      ```
+
+      Two indents (`IND-2026-0688` closed, `IND-2026-0731` open) and an empty run
+      log is the state to film in. Anything else is residue from a practice run —
+      an indent the agent already raised, or a logged outcome — and Run A will
+      then find its own indent open and reason about it.
+
+      Re-seed **only** in that case:
+      `docker compose down -v && docker compose up -d --wait`
+
+      Re-seeding is not free: the seed is `CURRENT_DATE`-relative and fixed at
+      volume-creation time, so seeding on a new day shifts every ETA and the date
+      table above has to be redone. As long as the seed is fresher than the ETAs
+      it quotes, leaving it alone is the safer move.
 
       This is what protects beats **A4**, **G5** and **B3** specifically: all
       three name a consignment ETA out loud, and an overdue ETA does not just
@@ -117,8 +151,7 @@ you record. Read them off the screen; do not read them off this page.
       cover, a stale volume flips **B3** and turns Run B into an indent, which
       destroys the whole Run A / Run B contrast the video is built on.
 - [ ] Confirm both runs still reach the right verdict after re-seeding
-- [ ] Read the live ETAs out of the database and fill in the ⟨placeholders⟩
-      (the ⟨gap⟩ in G3 is printed on the chart itself):
+- [ ] **Only if you re-seeded**, re-read the ETAs and update the table above:
       `docker exec stores-triage-db psql -U stores -d stores -c \
        "select consignment_no, eta, status from consignments;"`
 
