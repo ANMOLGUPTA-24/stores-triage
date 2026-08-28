@@ -20,7 +20,7 @@ from fastmcp import FastMCP
 from fastmcp.server.auth.providers.jwt import StaticTokenVerifier
 
 from stores_triage import db, mailer
-from stores_triage.triage import Projection, Verdict, adjudicate as _adjudicate
+from stores_triage.triage import Projection, Verdict, adjudicate as _adjudicate, hydrate_dates
 
 load_dotenv()
 
@@ -119,28 +119,6 @@ def get_vendor_lead_times(vendor_code: str) -> list[dict[str, Any]]:
 # ---------------------------------------------------------------------------
 
 
-def _parse_date(value: Any) -> date | None:
-    if value in (None, ""):
-        return None
-    if isinstance(value, date):
-        return value
-    return datetime.fromisoformat(str(value)).date()
-
-
-def _hydrate_dates(evidence: dict[str, Any]) -> dict[str, Any]:
-    """ETAs arrive as ISO strings; the rules compare them as dates."""
-    hydrated = dict(evidence)
-    if isinstance(hydrated.get("linked_consignment"), dict):
-        linked = dict(hydrated["linked_consignment"])
-        linked["eta"] = _parse_date(linked.get("eta"))
-        hydrated["linked_consignment"] = linked
-    if isinstance(hydrated.get("consignments"), list):
-        hydrated["consignments"] = [
-            {**c, "eta": _parse_date(c.get("eta"))} for c in hydrated["consignments"]
-        ]
-    return hydrated
-
-
 @mcp.tool(annotations=READ_ONLY)
 def adjudicate(
     part_no: str,
@@ -173,7 +151,7 @@ def adjudicate(
             Verdict(
                 hypothesis=v["hypothesis"],
                 verdict=v["verdict"],
-                evidence=_hydrate_dates(v.get("evidence") or {}),
+                evidence=hydrate_dates(v.get("evidence") or {}),
                 note=v.get("note", ""),
             )
             for v in verdicts

@@ -326,6 +326,37 @@ test fails if the two ever drift.
 Write tools carry `destructiveHint` so the harness knows to hold them for a
 human; read tools carry `readOnlyHint` so investigation never stops to ask.
 
+## Does it actually decide correctly?
+
+Measured, not asserted:
+
+```
+$ .venv/bin/python evals/run_eval.py
+
+16 labelled scenarios · adjudication only, no model
+correct: 16/16  (100%)
+  wrong raises   (buys covered stock): 0
+  missed shortages (bin runs empty)  : 0
+paper alerts correctly refused: 5/5
+
+mutation checks — each should be caught
+  overdue consignments count as cover      caught, 2 scenario(s) fail
+  any ETA counts as cover, however late    caught, 3 scenario(s) fail
+2/2 mutations caught
+```
+
+The scenarios' right answers are known **by construction**, not by asking the
+adjudicator: a consignment that is confirmed, covers the shortfall and lands in
+time *is* cover; one that is unconfirmed, short-shipped, overdue or late is not.
+Half of them differ from a paper case by a single field, because that is where
+the mistake actually gets made.
+
+A perfect score on cases the author wrote is worth nothing on its own, so the
+suite breaks its own rules on purpose and checks it notices. The first mutation
+is the bug this project really shipped and fixed the day before the deadline.
+
+See [evals/](evals/).
+
 ## Qodo Code Review Evidence
 
 Every substantive change lands through a pull request reviewed by
