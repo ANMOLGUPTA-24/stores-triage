@@ -132,6 +132,54 @@ Most agent demos cannot do this; they are built to act, so doing nothing looks
 like failure. Being confidently right that nothing should happen is the harder
 half of the problem, and it is the half that saves the money.
 
+## How it is wired
+
+```
+stock alert
+   │
+   ├─ TrueForge harness ────────────────────────────────────────────────┐
+   │    agent loop · MCP client · sandbox · subagent threads · gates    │
+   │                                                                    │
+   │  skill: stores-triage  (git-backed, materialised into the sandbox) │
+   │                                                                    │
+   │  1. analyse.py runs IN the sandbox and pulls its own record over   │
+   │     Code Mode — get_part, get_consumption_log, get_vendor_lead_    │
+   │     times — so the record never passes through the model           │
+   │  2. four subagents dispatched at once, one tool call each          │
+   │  3. adjudicate(): deterministic Python, four ordered rules         │
+   │  4. raise_indent / send_vendor_mail carry destructiveHint → held   │
+   └────────────────────────────────────────────────────────────────────┘
+   │
+   ├─ stores-mcp   remote HTTP MCP, bearer auth, 12 tools over Postgres
+   ├─ Postgres     5 constitution tables + a run log
+   └─ console      TrueForge event stream, keyed on threadId
+```
+
+`requireApprovalForTools` is narrowed to exactly the two irreversible tools. The
+default (`["@write","@destructive"]`) would also hold `log_run`, so the agent
+would sit waiting for permission to record that it had decided to do nothing —
+and a gate that fires on everything trains the operator to click through it.
+
+`askUserQuestions` is **disabled**. Left on, the agent reached the right decision
+and then asked for permission in prose — no evidence, no payload, and no held
+call for the harness to gate. That is the confirm() box this project exists to
+replace, so the only route to a human is now calling the gated tool.
+
+### The five things the harness is asked to prove, and where each one happens
+
+| | where it happens |
+|---|---|
+| Real tools through MCP | `stores-mcp`, 12 tools over a real Postgres, remote HTTP with bearer auth |
+| Generated code in a sandbox | `analyse.py` under bubblewrap; the sandbox installs pydantic and matplotlib from pypi itself |
+| A pause before anything irreversible | `raise_indent` held, then `send_vendor_mail` held **separately** after approval |
+| Work handed to subagents | four hypothesis subagents dispatched in parallel, one tool call each, four verdicts |
+| A session that holds across reconnects | proved the hard way — a turn died mid-run on a rate limit and the session kept its four verdicts, so the rest was driven as a second turn and reached the gate |
+
+That last row was not planned. Gemini's free tier allows five requests a minute
+and four subagents dispatching at once is eight in ten seconds, so the turn died
+about four requests short of the gate. The session survived it intact, which is
+the feature working under exactly the conditions it exists for.
+
 ## Where TrueForge fits
 
 We reimplemented none of it. The harness runs the agent loop, the MCP calls, the

@@ -329,7 +329,16 @@ human; read tools carry `readOnlyHint` so investigation never stops to ask.
 ## Qodo Code Review Evidence
 
 Every substantive change lands through a pull request reviewed by
-[Qodo](https://qodo.ai).
+[Qodo](https://qodo.ai). Nothing substantive was pushed to `main` — the only
+non-merge commit on `main` is the initial scaffold.
+
+**Severity accounting.** Across the reviewed PRs Qodo raised **11 High-severity
+findings** — five on [#3](https://github.com/ANMOLGUPTA-24/stores-triage/pull/3),
+five on [#4](https://github.com/ANMOLGUPTA-24/stores-triage/pull/4), one on
+[#7](https://github.com/ANMOLGUPTA-24/stores-triage/pull/7) — and **every one was
+fixed**; none was dismissed. Of the Medium findings, exactly one was not applied,
+with the reasoning written on the PR (below). Every PR went branch → review →
+decision → follow-up review → merge.
 
 **Representative reviewed PR:**
 [#4 — Operator console: four surfaces over the TrueForge event stream](https://github.com/ANMOLGUPTA-24/stores-triage/pull/4)
