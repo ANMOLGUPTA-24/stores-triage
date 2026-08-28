@@ -227,6 +227,20 @@ Run the tests:
 
 ## The console
 
+**Live, no setup: https://anmolgupta-24.github.io/stores-triage/**
+
+That page is the real console replaying the two recorded runs — the reducer is
+fed one event at a time exactly as a live turn would feed it, so the hypothesis
+board, the dossier, the approval gate and the waiting states are all drivable in
+a browser with no backend at all. The header says `recorded run` so nobody
+mistakes it for a live agent.
+
+The live agent is deliberately not hosted. It needs a TrueForge harness running
+with auth disabled, a Postgres, this repo's MCP server and a bubblewrap sandbox,
+and its two gated tools write to the indent register and send real mail. That
+belongs on a machine you control, not behind a public URL.
+
+
 ```bash
 cd console && npm install && npm run dev
 ```
