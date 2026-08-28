@@ -1,23 +1,8 @@
 """Assemble a narrated demo video from captured frames and synthesised speech.
 
-How the draft cut was made, kept so it can be remade.
-
-There is no screen recorder and no ffmpeg on this machine, and the console runs
-as a native Wayland window, so X11 capture (ximagesrc) returns black. The frames
-therefore come from browser screenshots, the voice from libespeak-ng through
-ctypes, and GStreamer muxes the two into WebM.
-
-The result is a slideshow with a synthetic voice. It is a stand-in: the
-narration text is the same one in notes/video-script.md, so re-recording it in a
-human voice and swapping narration.wav gives the same cut without the robot.
-
-    python3 scripts/build_demo_video.py     # writes narration.wav and seq/
-    gst-launch-1.0 -q -e \
-      multifilesrc location=seq/f%05d.jpg index=0 caps="image/jpeg,framerate=2/1" \
-        ! jpegdec ! videoconvert ! vp8enc deadline=1 cpu-used=8 ! queue \
-        ! webmmux name=mux ! filesink location=demo.webm \
-      filesrc location=narration.wav ! wavparse ! audioconvert ! audioresample \
-        ! vorbisenc ! queue ! mux.
+No screen recorder and no ffmpeg on this machine: the frames come from the
+browser tool, the voice from libespeak-ng, and GStreamer muxes them. The result
+is a slideshow with a synthetic voice - a draft to re-voice, not a final cut.
 """
 import ctypes, glob, os, shutil, struct, subprocess, sys
 
@@ -74,32 +59,36 @@ BEATS = [
      "You can drive both of these yourself, in a browser, in about a minute."),
 ]
 
-lib = ctypes.CDLL("libespeak-ng.so.1")
-SYNTH_CB = ctypes.CFUNCTYPE(ctypes.c_int, ctypes.POINTER(ctypes.c_short), ctypes.c_int, ctypes.c_void_p)
-buf = []
-def cb(wav, n, ev):
-    if wav and n > 0:
-        buf.extend(wav[i] for i in range(n))
-    return 0
-c_cb = SYNTH_CB(cb)
-rate = lib.espeak_Initialize(2, 0, None, 0)
-lib.espeak_SetSynthCallback(c_cb)
-lib.espeak_SetVoiceByName(b"en-gb")
-lib.espeak_SetParameter(1, 168, 0)   # rate, words per minute
-lib.espeak_SetParameter(2, 100, 0)   # volume
+VOICE = os.environ.get("PIPER_VOICE", "en_GB-alba-medium")
+PIPER = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".tts/bin/piper")
+VOICES = os.path.join(os.path.dirname(os.path.abspath(__file__)), "voices")
+
+
+def synth(text: str) -> tuple[list[int], int]:
+    """One beat of narration through piper, returned as samples.
+
+    espeak-ng was the first draft and sounded like it. A neural voice is the
+    difference between a demo that reads as finished and one that reads as a
+    placeholder, and presentation is a sixth of the score.
+    """
+    out = "/tmp/_beat.wav"
+    subprocess.run([PIPER, "-m", VOICE, "--data-dir", VOICES, "-f", out],
+                   input=text.encode(), check=True, capture_output=True)
+    import wave
+    with wave.open(out) as w:
+        rate = w.getframerate()
+        raw = w.readframes(w.getnframes())
+    return list(struct.unpack("<%dh" % (len(raw) // 2), raw)), rate
+
 
 FPS = 2
 os.makedirs("seq", exist_ok=True)
 for f in glob.glob("seq/*.jpg"):
     os.remove(f)
 
-all_samples, idx, timeline = [], 0, []
+all_samples, idx, timeline, rate = [], 0, [], 22050
 for frame_i, text in BEATS:
-    buf.clear()
-    b = text.encode()
-    lib.espeak_Synth(b, len(b) + 1, 0, 0, 0, 0x1000, None, None)
-    lib.espeak_Synchronize()
-    seg = list(buf)
+    seg, rate = synth(text)
     seg += [0] * int(rate * 0.6)          # a beat of silence between sections
     all_samples.extend(seg)
     secs = len(seg) / rate
