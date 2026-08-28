@@ -20,7 +20,7 @@ from fastmcp import FastMCP
 from fastmcp.server.auth.providers.jwt import StaticTokenVerifier
 
 from stores_triage import db, mailer
-from stores_triage.triage import Projection, Verdict, adjudicate as _adjudicate
+from stores_triage.triage import Projection, Verdict, adjudicate as _adjudicate, hydrate_dates
 
 load_dotenv()
 
@@ -43,6 +43,11 @@ mcp = FastMCP(
 )
 
 READ_ONLY = {"readOnlyHint": True, "destructiveHint": False}
+
+# part_no -> the action adjudicate() last returned for it, in this process.
+# Deliberately not persisted: it exists to stop a single run recording a
+# decision it never made, not to remember anything across restarts.
+_ADJUDICATED: dict[str, str] = {}
 DESTRUCTIVE = {"readOnlyHint": False, "destructiveHint": True, "idempotentHint": False}
 
 
@@ -119,28 +124,6 @@ def get_vendor_lead_times(vendor_code: str) -> list[dict[str, Any]]:
 # ---------------------------------------------------------------------------
 
 
-def _parse_date(value: Any) -> date | None:
-    if value in (None, ""):
-        return None
-    if isinstance(value, date):
-        return value
-    return datetime.fromisoformat(str(value)).date()
-
-
-def _hydrate_dates(evidence: dict[str, Any]) -> dict[str, Any]:
-    """ETAs arrive as ISO strings; the rules compare them as dates."""
-    hydrated = dict(evidence)
-    if isinstance(hydrated.get("linked_consignment"), dict):
-        linked = dict(hydrated["linked_consignment"])
-        linked["eta"] = _parse_date(linked.get("eta"))
-        hydrated["linked_consignment"] = linked
-    if isinstance(hydrated.get("consignments"), list):
-        hydrated["consignments"] = [
-            {**c, "eta": _parse_date(c.get("eta"))} for c in hydrated["consignments"]
-        ]
-    return hydrated
-
-
 @mcp.tool(annotations=READ_ONLY)
 def adjudicate(
     part_no: str,
@@ -173,13 +156,16 @@ def adjudicate(
             Verdict(
                 hypothesis=v["hypothesis"],
                 verdict=v["verdict"],
-                evidence=_hydrate_dates(v.get("evidence") or {}),
+                evidence=hydrate_dates(v.get("evidence") or {}),
                 note=v.get("note", ""),
             )
             for v in verdicts
         ],
         today=db.today(),
     )
+    # What log_run is allowed to record for this part. The deterministic
+    # decision is the only thing entitled to the name "no_action".
+    _ADJUDICATED[part_no] = rec.action
     return {
         "action": rec.action,
         "reason": rec.reason,
@@ -278,14 +264,30 @@ def log_run(
 ) -> dict[str, Any]:
     """Record what this run decided.
 
-    outcome is 'indent_raised', 'no_action' or 'rejected_by_operator'. A run
-    that correctly decides to do nothing is a result, not an absence, and gets
-    logged like any other.
+    outcome is 'indent_raised', 'no_action', 'rejected_by_operator', or
+    'inconclusive' when the run could not reach a decision at all. A run that
+    correctly decides to do nothing is a result, not an absence, and gets logged
+    like any other - but a run that merely failed is NOT that result, and must
+    not borrow its name.
+
+    'no_action' is therefore refused unless adjudicate() actually returned it
+    for this part. An agent that stopped early - a broken sandbox, a missing
+    projection, a rate limit - has to say 'inconclusive', which is the honest
+    record and the one an operator can act on. Observed in a live run: a model
+    whose sandbox calls were failing collected the evidence, correctly declined
+    to invent a projection, and then logged 'no_action' - indistinguishable in
+    the log from the run this whole project is built to demonstrate.
 
     session_id is optional. The agent has no reliable way to learn its own
     session id, and a required argument it cannot supply would make it invent
     one - so the server allocates a stable id instead of the model guessing.
     """
+    if outcome == "no_action" and _ADJUDICATED.get(part_no) != "no_action":
+        raise ValueError(
+            "no_action was not returned by adjudicate() for this part in this "
+            "process. If the run could not reach a decision, log 'inconclusive' "
+            "with the reason - do not record a failure as a decision."
+        )
     return db.insert_run_log(session_id or f"run-{uuid4().hex[:12]}", part_no, outcome, detail)
 
 

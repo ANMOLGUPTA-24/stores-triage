@@ -11,10 +11,40 @@ only. Ruling all four out is what makes a shortage genuine.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import date
+from datetime import date, datetime
 from typing import Any, Literal
 
 HYPOTHESES = ("consumption_spike", "inbound_delay", "duplicate_indent", "bom_change")
+
+
+def parse_date(value: Any) -> date | None:
+    """One ISO string or date to a date, or None."""
+    if value in (None, ""):
+        return None
+    if isinstance(value, date):
+        return value
+    return datetime.fromisoformat(str(value)).date()
+
+
+def hydrate_dates(evidence: dict[str, Any]) -> dict[str, Any]:
+    """ETAs arrive as ISO strings; the rules below compare them as dates.
+
+    This lives beside the rules rather than in the MCP server because it is part
+    of the adjudication contract, not of the transport: anything calling
+    adjudicate() - the server, an evaluation harness, a future caller - owes it
+    the same shape, and leaving the conversion in server.py meant the rules blew
+    up with a TypeError deep inside a comparison for anyone who did not know.
+    """
+    hydrated = dict(evidence)
+    if isinstance(hydrated.get("linked_consignment"), dict):
+        linked = dict(hydrated["linked_consignment"])
+        linked["eta"] = parse_date(linked.get("eta"))
+        hydrated["linked_consignment"] = linked
+    if isinstance(hydrated.get("consignments"), list):
+        hydrated["consignments"] = [
+            {**c, "eta": parse_date(c.get("eta"))} for c in hydrated["consignments"]
+        ]
+    return hydrated
 
 VerdictValue = Literal["positive", "negative", "inconclusive"]
 

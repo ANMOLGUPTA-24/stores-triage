@@ -13,6 +13,27 @@ The agent investigates, then either raises the indent and mails the vendor —
 **behind a human approval gate** — or tells you to do nothing, and shows its
 working either way.
 
+## ▶ Drive it yourself — https://anmolgupta-24.github.io/stores-triage/
+
+No install, no account, no backend. That page is the operator console replaying
+two runs that actually happened, one event at a time, exactly as a live turn
+feeds it — so the activity stream, the four subagents, the approval gate and the
+dossier are all yours to click through.
+
+Two alerts. **9.3 days of stock against 9.4.** From the alert alone they are the
+same problem:
+
+- **`TRB-4417`** — genuine. Watch it reach the gate and stop, with the working
+  attached: the numbers, the chart, the exact indent and mail payload, and one
+  line saying what would change its mind. Approve it and a second gate holds the
+  vendor mail separately.
+- **`BRK-2290`** — looks identical, and the agent correctly does **nothing**. No
+  gate, no approval, no indent — because the stock is already on order. That run
+  is the point of the whole project.
+
+Takes about a minute for both. The live agent is deliberately *not* hosted —
+see [The console](#the-console) for why.
+
 ## The idea
 
 **The agent never asks for permission bare.** An approval is only meaningful if
@@ -28,13 +49,31 @@ adjudicates between them. Differential diagnosis, not a work queue.
 
 ## Status
 
-Day 3 of 6. Working: Postgres schema + synthetic seed, the `stores-mcp` tool
-server, the adjudication logic, the sandbox analysis and chart, the
-`stores-triage` skill, and the operator console. 78 tests (46 Python, 32 TS).
-Both demo runs reach the correct decision end to end over MCP, and both render
-correctly in the console against a recorded event stream.
-Not wired yet: the console against a live TrueForge turn.
-This section stays honest as the project moves.
+**Both runs have been executed live** against a real TrueForge harness, a real
+MCP server over Postgres, and a real bubblewrap sandbox. 97 tests (65 Python,
+32 TS).
+
+**Run A — TRB-4417.** Sandbox up in 18s; `analyse.py` pulls the record itself
+over Code Mode and computes 4.48/day, dry in 9.4 days (7.7 at the fast end)
+against a 29.8-day p80 lead time. Four subagents, four verdicts, then the
+harness holds the call:
+
+```
+*** GATE HELD ***    raise_indent{part_no: TRB-4417, qty: 200}
+                     nothing written: no indent, no run-log row
+approved          -> IND-2026-0732
+*** SECOND GATE ***  send_vendor_mail{indent_no: IND-2026-0732}
+```
+
+Approving the indent does not pre-approve the mail, and the `indent_no` the
+second gate carries is the one `raise_indent` actually returned.
+
+**Run B — BRK-2290.** One unbroken turn, 101 seconds, ending `no_action`: the
+indent is already open and the consignment is in transit inside the stockout
+window. No gate, no approval, no new indent — and `run_log` records `no_action`
+as an outcome rather than an error.
+
+Not done: the demo video. This section stays honest as the project moves.
 
 ## The two runs
 
@@ -227,6 +266,20 @@ Run the tests:
 
 ## The console
 
+**Live, no setup: https://anmolgupta-24.github.io/stores-triage/**
+
+That page is the real console replaying the two recorded runs — the reducer is
+fed one event at a time exactly as a live turn would feed it, so the hypothesis
+board, the dossier, the approval gate and the waiting states are all drivable in
+a browser with no backend at all. The header says `recorded run` so nobody
+mistakes it for a live agent.
+
+The live agent is deliberately not hosted. It needs a TrueForge harness running
+with auth disabled, a Postgres, this repo's MCP server and a bubblewrap sandbox,
+and its two gated tools write to the indent register and send real mail. That
+belongs on a machine you control, not behind a public URL.
+
+
 ```bash
 cd console && npm install && npm run dev
 ```
@@ -273,10 +326,50 @@ test fails if the two ever drift.
 Write tools carry `destructiveHint` so the harness knows to hold them for a
 human; read tools carry `readOnlyHint` so investigation never stops to ask.
 
+## Does it actually decide correctly?
+
+Measured, not asserted:
+
+```
+$ .venv/bin/python evals/run_eval.py
+
+16 labelled scenarios · adjudication only, no model
+correct: 16/16  (100%)
+  wrong raises   (buys covered stock): 0
+  missed shortages (bin runs empty)  : 0
+paper alerts correctly refused: 5/5
+
+mutation checks — each should be caught
+  overdue consignments count as cover      caught, 2 scenario(s) fail
+  any ETA counts as cover, however late    caught, 3 scenario(s) fail
+2/2 mutations caught
+```
+
+The scenarios' right answers are known **by construction**, not by asking the
+adjudicator: a consignment that is confirmed, covers the shortfall and lands in
+time *is* cover; one that is unconfirmed, short-shipped, overdue or late is not.
+Half of them differ from a paper case by a single field, because that is where
+the mistake actually gets made.
+
+A perfect score on cases the author wrote is worth nothing on its own, so the
+suite breaks its own rules on purpose and checks it notices. The first mutation
+is the bug this project really shipped and fixed the day before the deadline.
+
+See [evals/](evals/).
+
 ## Qodo Code Review Evidence
 
 Every substantive change lands through a pull request reviewed by
-[Qodo](https://qodo.ai).
+[Qodo](https://qodo.ai). Nothing substantive was pushed to `main` — the only
+non-merge commit on `main` is the initial scaffold.
+
+**Severity accounting.** Across the reviewed PRs Qodo raised **11 High-severity
+findings** — five on [#3](https://github.com/ANMOLGUPTA-24/stores-triage/pull/3),
+five on [#4](https://github.com/ANMOLGUPTA-24/stores-triage/pull/4), one on
+[#7](https://github.com/ANMOLGUPTA-24/stores-triage/pull/7) — and **every one was
+fixed**; none was dismissed. Of the Medium findings, exactly one was not applied,
+with the reasoning written on the PR (below). Every PR went branch → review →
+decision → follow-up review → merge.
 
 **Representative reviewed PR:**
 [#4 — Operator console: four surfaces over the TrueForge event stream](https://github.com/ANMOLGUPTA-24/stores-triage/pull/4)
@@ -316,6 +409,38 @@ filling day gaps between the first and last issue still dropped the quiet days
 between the query window's edges and those events, so a part untouched for a
 fortnight read as consuming faster than it does. The observation window is now
 passed explicitly.
+
+### The rest of the trail
+
+Every PR since has been reviewed the same way. The findings kept being real, and
+two more would have broken the demo outright:
+
+- [#5 — an overdue consignment is not cover](https://github.com/ANMOLGUPTA-24/stores-triage/pull/5):
+  flagged that the change named no demo beat. Chasing that turned up a worse
+  problem — the storyboard pinned consignment ETAs as literal dates, and the
+  re-seed the PR documented moves them, so the script was already wrong on the
+  page.
+- [#6 — the local sandbox never had network](https://github.com/ANMOLGUPTA-24/stores-triage/pull/6):
+  three findings on the launcher — an undocumented `ss` dependency, a
+  version-specific workaround floating on an unpinned `npx`, and a failed
+  startup leaking the harness process to bind the port later. All three applied.
+- [#7 — Run A end to end](https://github.com/ANMOLGUPTA-24/stores-triage/pull/7):
+  **"Gate instructions deadlock agent."** With `ask_user_question` disabled, the
+  gated call was the only route to a human — but three places still said never
+  to call `raise_indent` until a human had approved. Together those are a trap:
+  present the dossier, wait for an approval that cannot exist because nothing
+  was ever held, stop. Caught before it cost a run.
+- [#9 — publish the console](https://github.com/ANMOLGUPTA-24/stores-triage/pull/9):
+  a hard-coded font size outside the type tokens. Applied, and widened — fixing
+  only the flagged line would have left six more introduced by the same PR.
+  Both type scales are declared as tokens now.
+
+One finding was **not** applied: #9 also called the owner's GitHub handle in the
+Pages URL "personal data exposed". The reply is on the PR — the rule it cites
+protects secrets, third-party names and employer data, and a repository owner's
+own handle in that repository's own URL is none of those, nor removable, since
+GitHub derives both the clone URL and the `<account>.github.io` origin from it.
+Disagreeing in writing on the PR, rather than silently ignoring it, is the point.
 
 ## Licence
 

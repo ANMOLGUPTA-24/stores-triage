@@ -23,7 +23,7 @@ Every item below advances a beat in CLAUDE.md §0b. Anything that doesn't, isn't
       Run B 10.2 days / real cover + duplicate indent
 - [x] LICENCE, .gitignore, .env.example, README
 - [x] git init, push public repo, PR #1 = these rails
-- [ ] **Anmol:** connect Qodo (still outstanding — required of every submission)
+- [x] **Anmol:** connect Qodo — reviewed every PR since #3
 
 ## Day 1 — Tue 25 Aug — the tool path is real  ✅
 - [x] `stores-mcp`: 12 tools over the seeded Postgres, bearer-token auth
@@ -65,12 +65,12 @@ Every item below advances a beat in CLAUDE.md §0b. Anything that doesn't, isn't
       no gate, logged as an outcome. The point of the demo, proven.
 - [x] OpenRouter set up (20/min, 50/day). Model bake-off: minimax-m3 follows
       the skill, nemotron-3-ultra ignores it, glm-5-2 upstream rate-limited.
-- [ ] Second free bucket (OpenRouter) — one run per day is not enough to finish
+- [x] Second free bucket: OpenRouter (20/min, 50/day). minimax-m3 follows the skill
 
 ## Day 4 — Sat 29 Aug — Run B, polish, record
 - [x] Run B end to end; "no action" lands in the run log as an outcome
-- [ ] Visual pass against §3: one accent colour, dense, monospace tool output
-- [ ] README complete; Qodo evidence section filled with real PR links
+- [x] Visual pass against §3, plus a front door for first-time viewers
+- [x] README complete and status brought onto the live results
 - [ ] Storyboard against §0b, then **record in the evening**
 - [x] **Captured: first Run B "no action"** (session 01m14fhwjwt2zvw7rnrfkxwhxh)
 
@@ -82,3 +82,12 @@ Every item below advances a beat in CLAUDE.md §0b. Anything that doesn't, isn't
 
 ## Review
 _(filled in as things land)_
+
+## Day 5 — Fri 28 Aug — checked end to end
+
+- [x] Clean clone verified: 65 Python + 32 TS tests, production build, no .env,
+      no key-shaped strings, every path the README names exists
+- [x] Console published as a replayable page for judges
+- [ ] **Record the video** — re-seed first, the database holds IND-2026-0732 and
+      one run_log row from the live runs
+- [ ] Submit

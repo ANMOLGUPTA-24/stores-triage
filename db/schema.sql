@@ -57,11 +57,17 @@ CREATE TABLE vendor_lead_times (
 CREATE INDEX ON vendor_lead_times (vendor_code);
 
 -- Run log: what the agent did, in order. "no action" is a first-class outcome.
+--
+-- 'inconclusive' exists because a run that could not reach a decision must not
+-- be recorded as one that decided to do nothing. Both leave the works with no
+-- indent raised, but only one of them is an answer: the other is a run that
+-- stopped early, and a stores officer reading this log has to be able to tell
+-- which, or "no action" stops meaning anything.
 CREATE TABLE run_log (
     id         BIGSERIAL PRIMARY KEY,
     session_id TEXT        NOT NULL,
     part_no    TEXT        NOT NULL REFERENCES parts(part_no),
-    outcome    TEXT        NOT NULL CHECK (outcome IN ('indent_raised', 'no_action', 'rejected_by_operator')),
+    outcome    TEXT        NOT NULL CHECK (outcome IN ('indent_raised', 'no_action', 'rejected_by_operator', 'inconclusive')),
     detail     JSONB       NOT NULL,
     logged_at  TIMESTAMPTZ NOT NULL DEFAULT now()
 );

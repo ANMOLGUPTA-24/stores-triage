@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 
 import { ActivityStream } from './components/ActivityStream'
+import { Pipeline } from './components/Pipeline'
+import { Landing } from './components/Landing'
 import { Dossier } from './components/Dossier'
 import { HypothesisBoard } from './components/HypothesisBoard'
 import { RunLog, type RunLogEntry } from './components/RunLog'
@@ -183,6 +185,9 @@ export default function App() {
     [cursor],
   )
 
+  // Nothing has run yet, so the page has to explain itself rather than show
+  // an empty operator console.
+  const idle = state.activity.length === 0 && log.length === 0
   const blocked = isBlocked(state)
   const statusClass = blocked
     ? 'is-blocked'
@@ -194,34 +199,60 @@ export default function App() {
     <div className="app">
       <header className="topbar">
         <h1>Stores Triage</h1>
-        <span className="part mono">{partNo}</span>
-        <span className={`status ${statusClass}`}>
-          <span className="dot" />
-          {blocked ? 'blocked on you' : state.status}
+        {/* Say plainly that this is a replay. The surfaces are identical to a
+            live turn because the same reducer drives them, which is exactly why
+            a visitor could otherwise assume an agent is running right now. */}
+        <span
+          className="replay"
+          title="A recorded event stream from a real run, replayed one event at a time. The live agent runs locally against Postgres, an MCP server and a sandbox."
+        >
+          recorded run
         </span>
+        {/* Before a run there is no part and no status to report, and the
+            front door already carries the choice — repeating it here gives a
+            visitor two of the same control and a state chip about nothing. */}
+        {!idle && (
+          <>
+            <span className="part mono">{partNo}</span>
+            <span className={`status ${statusClass}`}>
+              <span className="dot" />
+              {blocked ? 'blocked on you' : state.status}
+            </span>
+          </>
+        )}
         <span className="spacer" />
-        {(Object.keys(RUNS) as PartNo[]).map((part) => (
-          <button key={part} onClick={() => start(part)} disabled={cursor > 0 && cursor < queue.length}>
-            {part} — {RUNS[part].label}
-          </button>
-        ))}
+        {!idle &&
+          (Object.keys(RUNS) as PartNo[]).map((part) => (
+            <button key={part} onClick={() => start(part)} disabled={cursor > 0 && cursor < queue.length}>
+              {part} — {RUNS[part].label}
+            </button>
+          ))}
       </header>
 
-      <div className="columns">
-        <ActivityStream state={state} />
-        <div className="stack">
-          <HypothesisBoard state={state} />
-          <div className="body" style={{ overflow: 'auto', display: 'grid', gap: 'var(--gap)', alignContent: 'start' }}>
-            <Dossier
-              state={state}
-              chartUrl={state.projection && partNo === 'TRB-4417' ? '/chart-TRB-4417.png' : undefined}
-              onApprove={() => resume(APPROVED_TAIL)}
-              onReject={() => resume(REJECTED_TAIL)}
-            />
-            <RunLog entries={log} />
+      {idle ? (
+        <Landing onStart={start} />
+      ) : (
+        <div className="columns">
+          <ActivityStream state={state} />
+          <div className="stack">
+            <HypothesisBoard state={state} />
+            <div className="body" style={{ overflow: 'auto', display: 'grid', gap: 'var(--gap)', alignContent: 'start' }}>
+              <Dossier
+                state={state}
+                chartUrl={
+                  state.projection && partNo === 'TRB-4417'
+                    ? `${import.meta.env.BASE_URL}chart-TRB-4417.png`
+                    : undefined
+                }
+                onApprove={() => resume(APPROVED_TAIL)}
+                onReject={() => resume(REJECTED_TAIL)}
+              />
+              {!state.recommendation && !state.outcome && <Pipeline state={state} />}
+              <RunLog entries={log} />
+            </div>
           </div>
         </div>
-      </div>
+      )}
     </div>
   )
 }

@@ -90,6 +90,14 @@ Say, over the run log:
 Close on: the agent's job is to gather evidence and call tools. The maths and
 the judgment are code you can read and test.
 
+Then, on the last card, say it and show it:
+
+> **You can drive both of these yourself — anmolgupta-24.github.io/stores-triage**
+
+Worth a beat of its own. A judge who can click through the gate themselves is
+not taking the video's word for any of it, and it costs them a minute rather
+than a clone, a Postgres, a harness and an API key.
+
 ---
 
 ## Before recording

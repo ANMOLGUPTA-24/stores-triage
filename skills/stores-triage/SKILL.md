@@ -137,6 +137,14 @@ server allocates one.
 A run that correctly decides to do nothing is a result, not a failure. Present
 it with the same confidence as an indent.
 
+**If you could not reach a decision at all** — the sandbox would not run, the
+projection is missing, a tool kept failing — then log
+`log_run(part_no, "inconclusive", detail)` with the reason, and say so plainly.
+Do not log `no_action`: that is reserved for a decision the adjudicator actually
+made, and the server will refuse it. Both leave the works with no indent raised,
+but only one of them is an answer, and a stores officer reading the log has to
+be able to tell which.
+
 ### 4b. If the answer is `raise_indent`
 
 Call `draft_indent(part_no, qty)` to get the exact payload, then present the
