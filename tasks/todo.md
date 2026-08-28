@@ -61,15 +61,18 @@ Every item below advances a beat in CLAUDE.md §0b. Anything that doesn't, isn't
       written, approved -> IND-2026-0732, second gate held on send_vendor_mail.
 - [x] Found and fixed: the agent asking for permission bare via
       ask_user_question. Now disabled in config.
-- [ ] **Run B** — the no_action run. Needs a fresh day's quota or OpenRouter.
+- [x] **Run B live, one turn, 101s** — four subagents, adjudicate, no_action,
+      no gate, logged as an outcome. The point of the demo, proven.
+- [x] OpenRouter set up (20/min, 50/day). Model bake-off: minimax-m3 follows
+      the skill, nemotron-3-ultra ignores it, glm-5-2 upstream rate-limited.
 - [ ] Second free bucket (OpenRouter) — one run per day is not enough to finish
 
 ## Day 4 — Sat 29 Aug — Run B, polish, record
-- [ ] Run B end to end; "no action" lands in the run log as an outcome
+- [x] Run B end to end; "no action" lands in the run log as an outcome
 - [ ] Visual pass against §3: one accent colour, dense, monospace tool output
 - [ ] README complete; Qodo evidence section filled with real PR links
 - [ ] Storyboard against §0b, then **record in the evening**
-- [ ] **Capture: first Run B "no action"**
+- [x] **Captured: first Run B "no action"** (session 01m14fhwjwt2zvw7rnrfkxwhxh)
 
 ## Day 5 — Sun 30 Aug — ship
 - [ ] Cut the ~3 min video: problem → agent working → where the harness fits
