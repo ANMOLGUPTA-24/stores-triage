@@ -56,8 +56,12 @@ Every item below advances a beat in CLAUDE.md §0b. Anything that doesn't, isn't
       scripts/start_harness.sh without patching the package. PR #6.
 - [x] **Sandbox reached live** — agent ran analyse.py under bwrap, sandbox
       installed pydantic + matplotlib itself, real chart out
-- [ ] **Rest of Run A** — subagents, adjudicate, the gate. Got one step short;
-      429 at 20 requests/day. Never yet exercised live.
+- [x] **Run A end to end, live.** Sandbox, Code Mode record pull, four parallel
+      subagents, adjudicate, dossier, GATE HELD on raise_indent with nothing
+      written, approved -> IND-2026-0732, second gate held on send_vendor_mail.
+- [x] Found and fixed: the agent asking for permission bare via
+      ask_user_question. Now disabled in config.
+- [ ] **Run B** — the no_action run. Needs a fresh day's quota or OpenRouter.
 - [ ] Second free bucket (OpenRouter) — one run per day is not enough to finish
 
 ## Day 4 — Sat 29 Aug — Run B, polish, record

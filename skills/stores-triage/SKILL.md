@@ -27,10 +27,15 @@ without checking.
 ### 1. Get the record and the numbers, in one sandbox call
 
 ```bash
+SKILL=$(ls -d /opt/tfy/skills/stores-triage 2>/dev/null || echo skills/stores-triage)
 pip install matplotlib --quiet && \
-python /opt/tfy/skills/stores-triage/scripts/analyse.py \
-  --part-no <PART-NO> --days 120 --chart chart.png
+python "$SKILL/scripts/analyse.py" --part-no <PART-NO> --days 120 --chart chart.png
 ```
+
+Run it exactly like that, in one command. The skill is materialised at
+`/opt/tfy/skills/stores-triage` in a remote sandbox but at `skills/stores-triage`
+relative to the working directory in a local one, and hunting for the right path
+costs two model requests out of a daily allowance of twenty.
 
 That is the whole step. The script pulls the part, the consumption log and the
 vendor lead times itself over Code Mode, then computes everything and writes the
@@ -144,6 +149,12 @@ must contain all of:
 4. The **exact payload** from `draft_indent` — the indent fields and the full
    mail body, not a description of them
 5. The `what_would_change_my_mind` line from `adjudicate`, verbatim
+
+**Never ask whether to proceed.** Not in prose, not with `ask_user_question`,
+not "shall I go ahead?". There is no question to ask: the dossier plus the held
+tool call *is* the request for approval, and it is a better one than any
+question, because the operator can see the exact payload rather than a summary
+of it. A run that stops to ask has produced nothing to approve.
 
 Then call `raise_indent`. **The call itself is what creates the approval
 request** — the harness intercepts it, holds it, and shows the operator the

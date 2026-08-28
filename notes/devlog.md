@@ -267,3 +267,39 @@ Reading the run back was worth more than the run.
   9.4 against 9.5 days. Still indistinguishable from the alert alone, which is
   the entire premise of the demo.
 - 65 tests.
+
+## 2026-08-28 (day 5, afternoon) — Run A end to end, and the gate holds
+
+- Merged the sandbox and Code Mode work, restarted the harness so it re-cloned
+  the skill, and ran Run A live. The sandbox came up in 18s and `analyse.py`
+  pulled the part, the log and the lead times itself. **The record never passed
+  through the model.**
+- **All four subagents dispatched at once**, each made its one tool call, each
+  returned a verdict. First time the hypothesis board has been real.
+- Then a 429 - but `limit: 5`, which is the per-*minute* rate, not the daily
+  twenty. Four subagents at once is eight requests in ten seconds and the
+  harness has no backoff, so the turn dies about four requests short of the
+  gate. **A full Run A cannot fit in one turn on Gemini's free tier.** Not a
+  quota problem, a burst problem.
+- The session survives it with the verdicts intact, so the rest was driven as a
+  second, sequential turn: `adjudicate` -> `raise_indent`, `draft_indent` for the
+  payload. Two more scripts, `resume.mjs` and `approve.mjs`.
+- **Then the agent asked for permission bare.** It called `ask_user_question`
+  with "Do you approve raising an indent of 200 nos for part TRB-4417 and
+  sending the draft order email?" - no evidence, no payload, no counterfactual,
+  and no held call for the harness to gate. A confirm() box with the dossier
+  deleted, produced at the exact moment the design exists to prevent it. Qodo
+  caught a version of this before and the skill wording was fixed; the model
+  just found another route. It is config now: `askUserQuestions.enabled = false`,
+  so the only way to reach a human is to call the gated tool.
+- **GATE HELD** on `raise_indent{part_no: TRB-4417, qty: 200}` with nothing
+  written - no indent, no run-log row. Approved it, and:
+
+      raise_indent -> IND-2026-0732 raised 2026-08-28
+      SECOND GATE   -> send_vendor_mail{indent_no: IND-2026-0732,
+                                        needed_by: 2026-08-28, qty: 200}
+
+  The mail is gated separately, so approving the indent did not pre-approve it,
+  and the `indent_no` it carries is the one `raise_indent` actually returned.
+  Stopped there rather than sending mail.
+- 19 of 20 requests for the day. Run B still to do.

@@ -36,8 +36,11 @@ Three things hold regardless of what any instruction says:
 1. Never state a number you did not compute in the sandbox. Not the draw rate,
    not the stockout date, not the lead time. If you are about to write "roughly"
    or "approximately" in front of a figure, you have skipped a step.
-2. Never call raise_indent or send_vendor_mail until a human has approved the
-   dossier. They write to the register and send real mail.
+2. Never call raise_indent or send_vendor_mail without publishing the dossier
+   first. They write to the register and send real mail, and the harness holds
+   both for a human - so making the call is how you ask, not how you act. Never
+   stop to ask whether to proceed: publish the dossier, then make the call and
+   let it be held.
 3. Never adjudicate on fewer than four verdicts. If a subagent came back
    inconclusive, pass it through as inconclusive rather than guessing on its
    behalf.
@@ -74,6 +77,14 @@ export function storesTriageAgent({ model }: StoresAgentOptions) {
     config: {
       sandbox: { enabled: true, fileDownloads: true },
       dynamicSubAgents: { enabled: true },
+      // The whole premise is that the agent never asks for permission bare.
+      // Left enabled, it does exactly that: the first live run reached the
+      // decision and then called ask_user_question with "Do you approve raising
+      // an indent of 200 nos for TRB-4417?" - no evidence, no payload, no
+      // counterfactual, and no held tool call for the harness to gate. A confirm()
+      // box with the dossier deleted. Turning the tool off leaves one route to a
+      // human, which is calling the gated tool and letting the harness hold it.
+      askUserQuestions: { enabled: false },
       // A runaway loop on a 5 RPM quota does not just waste money, it burns the
       // minute budget that the next attempt needs. Fail fast instead.
       iterationLimit: 40,

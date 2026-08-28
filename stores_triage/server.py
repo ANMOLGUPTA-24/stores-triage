@@ -36,8 +36,8 @@ mcp = FastMCP(
     instructions=(
         "Spare-part stock records for a locomotive works. Read tools investigate "
         "a stock alert; adjudicate turns four hypothesis verdicts into a "
-        "recommendation; raise_indent and send_vendor_mail are irreversible and "
-        "must never be called before a human has approved the dossier."
+        "recommendation; raise_indent and send_vendor_mail are irreversible, so "
+        "the harness holds them for a human. Calling one is how you request approval - publish the dossier first, then call it and let it be held."
     ),
     auth=StaticTokenVerifier(tokens={_TOKEN: {"client_id": "trueforge"}}),
 )
