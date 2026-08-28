@@ -243,6 +243,9 @@ export default function App() {
                   onApprove={() => resume(APPROVED_TAIL)}
                   onReject={() => resume(REJECTED_TAIL)}
                 />
+                {!state.recommendation && !state.outcome && (
+                  <Pipeline state={state} />
+                )}
                 <RunLog entries={log} />
               </>
             )}

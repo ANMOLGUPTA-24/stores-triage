@@ -619,3 +619,21 @@ button:disabled {
 .pipeline .source a:hover {
   color: var(--ink);
 }
+
+/* Steps already passed recede; the current one is marked with a rule rather
+   than the accent, which stays reserved for blocked-on-human. */
+.pipeline li.is-done .t,
+.pipeline li.is-done .d {
+  color: var(--ink-faint);
+}
+.pipeline li.is-done .n {
+  color: var(--ok);
+}
+.pipeline li.is-now {
+  border-left: 2px solid var(--ink-dim);
+  margin-left: -12px;
+  padding-left: 10px;
+}
+.pipeline li.is-now .t {
+  color: var(--ink);
+}
