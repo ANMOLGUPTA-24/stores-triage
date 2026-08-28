@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 
 import { ActivityStream } from './components/ActivityStream'
-import { Brief } from './components/Brief'
 import { Pipeline } from './components/Pipeline'
+import { Landing } from './components/Landing'
 import { Dossier } from './components/Dossier'
 import { HypothesisBoard } from './components/HypothesisBoard'
 import { RunLog, type RunLogEntry } from './components/RunLog'
@@ -208,50 +208,51 @@ export default function App() {
         >
           recorded run
         </span>
-        <span className="part mono">{partNo}</span>
-        <span className={`status ${statusClass}`}>
-          <span className="dot" />
-          {blocked ? 'blocked on you' : state.status}
-        </span>
+        {/* Before a run there is no part and no status to report, and the
+            front door already carries the choice — repeating it here gives a
+            visitor two of the same control and a state chip about nothing. */}
+        {!idle && (
+          <>
+            <span className="part mono">{partNo}</span>
+            <span className={`status ${statusClass}`}>
+              <span className="dot" />
+              {blocked ? 'blocked on you' : state.status}
+            </span>
+          </>
+        )}
         <span className="spacer" />
-        {(Object.keys(RUNS) as PartNo[]).map((part) => (
-          <button key={part} onClick={() => start(part)} disabled={cursor > 0 && cursor < queue.length}>
-            {part} — {RUNS[part].label}
-          </button>
-        ))}
+        {!idle &&
+          (Object.keys(RUNS) as PartNo[]).map((part) => (
+            <button key={part} onClick={() => start(part)} disabled={cursor > 0 && cursor < queue.length}>
+              {part} — {RUNS[part].label}
+            </button>
+          ))}
       </header>
 
-      <div className="columns">
-        {idle ? <Pipeline /> : <ActivityStream state={state} />}
-        <div className="stack">
-          <HypothesisBoard state={state} />
-          <div className="body" style={{ overflow: 'auto', display: 'grid', gap: 'var(--gap)', alignContent: 'start' }}>
-            {idle ? (
-              // Before the first run this space holds two placeholders that
-              // explain nothing. Give a visitor the stakes instead; it is gone
-              // as soon as they start a run.
-              <Brief />
-            ) : (
-              <>
-                <Dossier
-                  state={state}
-                  chartUrl={
-                    state.projection && partNo === 'TRB-4417'
-                      ? `${import.meta.env.BASE_URL}chart-TRB-4417.png`
-                      : undefined
-                  }
-                  onApprove={() => resume(APPROVED_TAIL)}
-                  onReject={() => resume(REJECTED_TAIL)}
-                />
-                {!state.recommendation && !state.outcome && (
-                  <Pipeline state={state} />
-                )}
-                <RunLog entries={log} />
-              </>
-            )}
+      {idle ? (
+        <Landing onStart={start} />
+      ) : (
+        <div className="columns">
+          <ActivityStream state={state} />
+          <div className="stack">
+            <HypothesisBoard state={state} />
+            <div className="body" style={{ overflow: 'auto', display: 'grid', gap: 'var(--gap)', alignContent: 'start' }}>
+              <Dossier
+                state={state}
+                chartUrl={
+                  state.projection && partNo === 'TRB-4417'
+                    ? `${import.meta.env.BASE_URL}chart-TRB-4417.png`
+                    : undefined
+                }
+                onApprove={() => resume(APPROVED_TAIL)}
+                onReject={() => resume(REJECTED_TAIL)}
+              />
+              {!state.recommendation && !state.outcome && <Pipeline state={state} />}
+              <RunLog entries={log} />
+            </div>
           </div>
         </div>
-      </div>
+      )}
     </div>
   )
 }

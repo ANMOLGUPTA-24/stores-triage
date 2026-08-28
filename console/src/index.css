@@ -451,80 +451,6 @@ button:disabled {
   cursor: help;
 }
 
-/* The brief. Dense and neutral on purpose: it is context for a stranger, not a
-   landing page, and it must not out-shout the console it introduces. */
-.brief .body {
-  padding: 14px 18px 16px;
-  color: var(--ink-dim);
-  line-height: 1.5;
-}
-/* Use the width rather than leaving a column of dead space beside a narrow
-   measure. Two columns also gets the whole brief above the fold, which matters:
-   a visitor who has to scroll to find out what they are looking at will not. */
-.brief .split {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-  gap: 0 26px;
-  align-items: start;
-}
-@media (max-width: 1100px) {
-  .brief .split {
-    grid-template-columns: minmax(0, 1fr);
-  }
-}
-.brief p {
-  margin: 0 0 10px;
-}
-.brief .lede {
-  color: var(--ink);
-  font-size: var(--display);
-  line-height: 1.35;
-  margin-bottom: 12px;
-}
-.brief strong {
-  color: var(--ink);
-  font-weight: 600;
-}
-.brief em {
-  font-style: normal;
-  color: var(--ink);
-}
-.brief .costs {
-  margin: 0 0 10px;
-  padding: 8px 0 8px 12px;
-  border-left: 2px solid var(--line-strong);
-}
-.brief .costs dt {
-  color: var(--ink);
-  font-weight: 600;
-}
-.brief .costs dd {
-  margin: 0 0 6px;
-}
-.brief .costs dd:last-child {
-  margin-bottom: 0;
-}
-.brief .how {
-  margin: 0;
-  padding: 0;
-  list-style: none;
-  display: grid;
-  gap: 7px;
-}
-.brief .how li {
-  padding-left: 12px;
-  border-left: 1px solid var(--line);
-}
-.brief .how .k {
-  color: var(--ink);
-  font-weight: 600;
-}
-.brief .closing {
-  margin: 12px 0 0;
-  padding-top: 10px;
-  border-top: 1px solid var(--line);
-}
-
 /* How-a-run-works, shown in the activity column before the first run. */
 .pipeline .body {
   padding: 14px 16px 16px;
@@ -558,67 +484,9 @@ button:disabled {
   color: var(--ink-dim);
   line-height: 1.45;
 }
-.pipeline .boundary {
-  border-top: 1px solid var(--line);
-  padding-top: 12px;
-  display: grid;
-  gap: 8px;
-}
-.pipeline .boundary p {
-  margin: 0;
-  color: var(--ink-dim);
-  line-height: 1.45;
-}
-.pipeline .boundary .t {
-  display: inline;
-}
-.pipeline .cta {
-  margin: 14px 0 0;
-  padding-top: 12px;
-  border-top: 1px solid var(--line);
-  color: var(--ink);
-}
 
 /* The figures that say why any of this is worth doing. */
-.brief .impact {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 14px;
-  margin: 0 0 14px;
-  padding: 10px 0;
-  border-top: 1px solid var(--line);
-  border-bottom: 1px solid var(--line);
-}
-.brief .impact .fig {
-  display: block;
-  color: var(--ink);
-  font-size: var(--display);
-  line-height: 1.2;
-}
-.brief .impact .cap {
-  display: block;
-  color: var(--ink-faint);
-  line-height: 1.35;
-  margin-top: 2px;
-}
-@media (max-width: 900px) {
-  .brief .impact {
-    grid-template-columns: minmax(0, 1fr);
-  }
-}
 
-.pipeline .source {
-  margin: 8px 0 0;
-  color: var(--ink-faint);
-}
-.pipeline .source a {
-  color: var(--ink-dim);
-  text-decoration: underline;
-  text-underline-offset: 2px;
-}
-.pipeline .source a:hover {
-  color: var(--ink);
-}
 
 /* Steps already passed recede; the current one is marked with a rule rather
    than the accent, which stays reserved for blocked-on-human. */
@@ -636,4 +504,246 @@ button:disabled {
 }
 .pipeline li.is-now .t {
   color: var(--ink);
+}
+
+/* ---------- the front door ----------
+ *
+ * The console's one-display-one-body rule governs the operator surfaces, where
+ * a flat ramp keeps tool output from competing with the agent. The landing has
+ * the opposite job - a stranger with thirty seconds needs a first thing to
+ * read - so it carries its own ramp, scoped here and used nowhere else.
+ */
+.landing {
+  overflow: auto;
+  min-height: 0;
+}
+.landing-inner {
+  max-width: 1160px;
+  margin: 0 auto;
+  padding: 26px 28px 36px;
+  display: grid;
+  gap: 12px;
+  align-content: start;
+}
+
+.landing .headline {
+  margin: 0;
+  font-size: 30px;
+  line-height: 1.2;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  text-wrap: pretty;
+  max-width: 48ch;
+}
+.landing .sub {
+  margin: 0;
+  font-size: 15px;
+  color: var(--ink-dim);
+  max-width: 78ch;
+  text-wrap: pretty;
+}
+.landing .lab {
+  font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--ink-faint);
+}
+
+/* The only action on the page, sized like it. */
+.picks {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--gap);
+}
+.pick {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  grid-template-rows: auto auto;
+  align-items: center;
+  gap: 2px 16px;
+  padding: 15px 18px;
+  text-align: left;
+  font: inherit;
+  color: var(--ink);
+  background: var(--panel);
+  border: 1px solid var(--line-strong);
+  cursor: pointer;
+}
+.pick:hover {
+  border-color: var(--ink-faint);
+}
+.pick.is-primary {
+  background: var(--ink);
+  border-color: var(--ink);
+  color: var(--bg);
+}
+.pick.is-primary:hover {
+  background: #fff;
+  border-color: #fff;
+}
+.pick-id {
+  grid-column: 1;
+  grid-row: 1;
+  color: var(--ink-faint);
+}
+.pick.is-primary .pick-id {
+  color: var(--bg);
+  opacity: 0.66;
+}
+.pick-name {
+  grid-column: 1;
+  grid-row: 2;
+  font-size: 17px;
+  font-weight: 600;
+}
+.pick-days {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  font-size: 26px;
+  font-weight: 600;
+  line-height: 1;
+  justify-self: end;
+}
+.pick-cap {
+  display: none;
+}
+.pick-go {
+  grid-column: 3;
+  grid-row: 1 / span 2;
+  display: flex;
+  color: var(--ink-dim);
+}
+.pick.is-primary .pick-go {
+  color: var(--bg);
+}
+.picks-note {
+  margin: 0;
+  color: var(--ink-dim);
+  max-width: 84ch;
+}
+
+/* Figures set as figures. */
+.figures {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 24px;
+  padding: 16px 0 2px;
+  border-top: 1px solid var(--line);
+  margin-top: 6px;
+}
+.figures .fig {
+  display: block;
+  font-size: 38px;
+  font-weight: 600;
+  line-height: 1;
+  letter-spacing: -0.02em;
+}
+.figures .unit {
+  font-size: 19px;
+  font-weight: 500;
+}
+.figures .cap {
+  display: block;
+  color: var(--ink-faint);
+  margin-top: 6px;
+  max-width: 26ch;
+}
+
+.landing .two {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 28px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+  margin-top: 8px;
+}
+.landing .two section {
+  display: grid;
+  gap: 10px;
+  align-content: start;
+}
+
+/* The four hypotheses as the method, not as an empty board. */
+.questions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+.questions > div {
+  border: 1px solid var(--line);
+  background: var(--panel);
+  padding: 10px 11px;
+  display: grid;
+  gap: 4px;
+  align-content: start;
+}
+.qname {
+  color: var(--ink);
+}
+.qtext {
+  color: var(--ink-dim);
+  line-height: 1.4;
+}
+.qnote {
+  margin: 0;
+  color: var(--ink-faint);
+}
+
+.steps {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 9px;
+}
+.steps li {
+  display: grid;
+  grid-template-columns: 22px minmax(0, 1fr);
+  gap: 10px;
+  color: var(--ink-dim);
+  line-height: 1.45;
+}
+.steps .n {
+  color: var(--ink-faint);
+}
+.steps strong {
+  color: var(--ink);
+  font-weight: 600;
+}
+
+.landing .boundary {
+  display: grid;
+  gap: 7px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+  margin-top: 8px;
+  color: var(--ink-dim);
+}
+.landing .boundary p {
+  margin: 0;
+}
+.landing .boundary strong {
+  color: var(--ink);
+  font-weight: 600;
+}
+.landing .source {
+  color: var(--ink-faint);
+}
+.landing .source a {
+  color: var(--ink-dim);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.landing .source a:hover {
+  color: var(--ink);
+}
+
+@media (max-width: 900px) {
+  .picks,
+  .figures,
+  .landing .two,
+  .questions {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
