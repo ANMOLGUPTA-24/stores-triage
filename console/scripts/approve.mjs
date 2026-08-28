@@ -31,9 +31,44 @@ if (held.size === 0) {
   console.log('nothing is being held')
   process.exit(0)
 }
-for (const [id, { call }] of held) {
-  console.log(`${allow ? 'APPROVING' : 'DENYING'} ${call.function?.name ?? '?'}  (${id})`)
+
+// An approval is only worth something if the reasoning is visible at the moment
+// of approving. Printing a tool name and an id would be the confirm() box this
+// project exists to replace, so the dossier the agent built is reproduced here:
+// the recommendation and why, the counterfactual, and the exact payload.
+const decisions = new Map()
+for (const row of events ?? []) {
+  const e = row.event ?? row
+  if (e?.type !== 'tool.response') continue
+  const body = typeof e.content === 'string' ? e.content : JSON.stringify(e.content ?? '')
+  try {
+    const parsed = JSON.parse(body)
+    if (parsed?.action && parsed?.reason) decisions.set('adjudicate', parsed)
+    if (parsed?.indent && parsed?.mail) decisions.set('draft_indent', parsed)
+  } catch { /* not every tool result is JSON */ }
 }
+
+const verdict = decisions.get('adjudicate')
+if (verdict) {
+  console.log(`\nRECOMMENDATION  ${verdict.action}${verdict.urgency ? `  (${verdict.urgency})` : ''}`)
+  console.log(`WHY             ${verdict.reason}`)
+  console.log(`RULED OUT       ${(verdict.ruled_out ?? []).join(', ') || 'nothing'}`)
+  console.log(`WOULD CHANGE IT ${verdict.what_would_change_my_mind}`)
+} else {
+  console.log('\nWARNING: no adjudication found in this session — approving blind.')
+}
+
+const draft = decisions.get('draft_indent')
+if (draft) {
+  console.log('\nEXACT PAYLOAD')
+  console.log(JSON.stringify(draft, null, 2))
+}
+
+console.log('\nHELD CALLS')
+for (const [id, { call }] of held) {
+  console.log(`  ${call.function?.name ?? '?'}  ${call.function?.arguments ?? ''}  (${id})`)
+}
+console.log(`\n${allow ? 'APPROVING' : 'DENYING'} the above.\n`)
 
 const t0 = Date.now()
 const el = () => `${String(Math.round((Date.now() - t0) / 1000)).padStart(3)}s`

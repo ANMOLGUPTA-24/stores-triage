@@ -11,20 +11,29 @@ const content = process.env.TF_ANSWER
 if (!sid || !content) { console.error('set TF_SESSION and TF_ANSWER'); process.exit(1) }
 
 const { data: events } = await tf.sessions.listEvents(sid)
+
+// A question that has already been answered has a tool.response against its
+// call id. Without checking that, a session which asked more than one question
+// across continuations would get the oldest one answered again forever, and the
+// question actually blocking it would never be reached.
+const settled = new Set()
+for (const row of events ?? []) {
+  const e = row.event ?? row
+  if (e?.type === 'tool.response') settled.add(e.toolCallId ?? e.tool_call_id)
+}
+
 let pending = null
 for (const row of events ?? []) {
   const e = row.event ?? row
-  if (e?.type === 'turn.done') {
-    for (const a of e.state?.required_actions ?? e.state?.requiredActions ?? []) {
-      if (a.type === 'tool.response_required') {
-        // The id that matters is the held tool call's, not the action's.
-        const call = (a.tool_calls ?? a.toolCalls ?? [])[0]
-        pending = {
-          threadId: a.thread_id ?? a.threadId ?? 'main',
-          toolCallId: call?.id ?? a.tool_call_id ?? a.id,
-        }
-      }
-    }
+  if (e?.type !== 'turn.done') continue
+  for (const a of e.state?.required_actions ?? e.state?.requiredActions ?? []) {
+    if (a.type !== 'tool.response_required') continue
+    // The id that matters is the held tool call's, not the action's.
+    const call = (a.tool_calls ?? a.toolCalls ?? [])[0]
+    const toolCallId = call?.id ?? a.tool_call_id ?? a.id
+    if (settled.has(toolCallId)) continue
+    pending = { threadId: a.thread_id ?? a.threadId ?? 'main', toolCallId }
+    break
   }
   if (pending) break
 }

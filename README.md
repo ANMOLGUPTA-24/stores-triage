@@ -127,6 +127,31 @@ cd console && TF_MODEL=openrouter/<model-id> node scripts/run.mjs
 
 `TF_PART` selects the alert (`TRB-4417` for Run A, `BRK-2290` for Run B).
 
+### Driving a run
+
+```bash
+cd console
+TF_MODEL=openrouter/nemotron-3-ultra TF_PART=TRB-4417 node scripts/run.mjs
+```
+
+A run can stop before it finishes for two reasons, and there is a script for
+each. Both take `TF_SESSION`, printed on the first line of `run.mjs` output.
+
+| script | when | variables |
+|---|---|---|
+| `resume.mjs` | the turn died mid-run — usually a rate limit — and you want to continue from what the session already holds | `TF_SESSION`, `TF_MESSAGE` |
+| `approve.mjs` | the harness is holding a gated call and you are the human | `TF_SESSION`, and `TF_DENY=1` to reject instead |
+| `answer.mjs` | an older session is stuck on a question (`ask_user_question` is disabled now, so new sessions cannot be) | `TF_SESSION`, `TF_ANSWER` |
+
+`approve.mjs` prints the dossier — recommendation, reasoning, what would change
+it, and the exact payload — before it approves anything. Read it. Approving on a
+tool name alone is the thing this project exists to replace.
+
+```bash
+TF_SESSION=<id> node scripts/approve.mjs        # approve
+TF_SESSION=<id> TF_DENY=1 node scripts/approve.mjs   # reject
+```
+
 ### Sandbox
 
 Either works; the analysis code is identical in both.
