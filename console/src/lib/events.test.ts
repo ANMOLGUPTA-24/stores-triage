@@ -39,8 +39,18 @@ describe('Run A - genuine shortage', () => {
   })
 
   it('carries the counterfactual through to the dossier', () => {
-    expect(state.recommendation?.what_would_change_my_mind).toContain('CN-8821')
-    expect(state.recommendation?.what_would_change_my_mind).toContain('2026-08-27')
+    const line = state.recommendation?.what_would_change_my_mind ?? ''
+    expect(line).toContain('CN-8821')
+
+    // The date must be the ETA the evidence actually carries, not a literal -
+    // the fixtures resolve their dates at load so a recorded run never shows a
+    // consignment that is already overdue, and asserting a hard-coded date here
+    // would only test that constant.
+    const inbound = state.verdicts.find((v) => v.hypothesis === 'inbound_delay')
+    const eta = (inbound?.evidence as { consignments?: Array<{ eta: string }> })
+      ?.consignments?.[0]?.eta
+    expect(eta).toMatch(/^\d{4}-\d{2}-\d{2}$/)
+    expect(line).toContain(eta as string)
   })
 
   it('has the exact payload ready to show', () => {

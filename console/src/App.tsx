@@ -7,7 +7,7 @@ import { Dossier } from './components/Dossier'
 import { HypothesisBoard } from './components/HypothesisBoard'
 import { RunLog, type RunLogEntry } from './components/RunLog'
 import { initialState, isBlocked, reduce, type StreamEvent } from './lib/events'
-import { RUN_A, RUN_B } from './lib/fixtures'
+import { NEEDED_BY, RUN_A, RUN_B } from './lib/fixtures'
 
 /**
  * The operator console.
@@ -33,7 +33,7 @@ type PartNo = keyof typeof RUNS
  * outgoing mail from whatever is passed here, so a different value would mean
  * the operator approved one letter and a different one went out.
  */
-const REVIEWED_NEEDED_BY = '2026-08-26'
+const REVIEWED_NEEDED_BY = NEEDED_BY
 
 const APPROVED_TAIL: StreamEvent[] = [
   {

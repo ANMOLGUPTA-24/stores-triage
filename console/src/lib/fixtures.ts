@@ -9,6 +9,32 @@
 
 import type { StreamEvent } from './events'
 
+/**
+ * Dates in a recorded run go stale.
+ *
+ * The seed is CURRENT_DATE-relative, so a recording made on one day shows ETAs
+ * that are in the past by the time anyone else opens the page - and an overdue
+ * consignment is exactly the thing the agent is supposed to refuse to count as
+ * cover. A visitor would be reading a dossier that argues against itself.
+ *
+ * So the two ETAs are held as the offsets the seed actually uses and resolved
+ * when the page loads. The numbers, the verdicts and the reasoning are the
+ * recorded ones; only the dates move, and they move the way the database moves
+ * them.
+ */
+function seedDate(offsetDays: number): string {
+  const d = new Date()
+  d.setDate(d.getDate() + offsetDays)
+  return d.toISOString().slice(0, 10)
+}
+
+/** CN-8821, the unconfirmed cover in Run A: seed + 2. */
+const ETA_A = seedDate(2)
+/** CN-9104, the confirmed cover in Run B: seed + 3. */
+const ETA_B = seedDate(3)
+/** What the indent asks for, which the seed puts at the day of the run. */
+export const NEEDED_BY = seedDate(0)
+
 const toolCall = (id: string, name: string, args: unknown) => ({
   id,
   type: 'function',
@@ -60,7 +86,7 @@ const VERDICTS_A = [
     verdict: 'positive',
     evidence: {
       consignments: [
-        { consignment_no: 'CN-8821', qty: 200, eta: '2026-08-27', status: 'unconfirmed' },
+        { consignment_no: 'CN-8821', qty: 200, eta: ETA_A, status: 'unconfirmed' },
       ],
     },
     note: 'CN-8821 is shown against the part but the vendor has not confirmed dispatch.',
@@ -76,7 +102,7 @@ const VERDICTS_B = [
     verdict: 'positive',
     evidence: {
       consignments: [
-        { consignment_no: 'CN-9104', qty: 300, eta: '2026-08-28', status: 'in_transit' },
+        { consignment_no: 'CN-9104', qty: 300, eta: ETA_B, status: 'in_transit' },
       ],
     },
     note: 'CN-9104 is confirmed in transit, due 28 Aug.',
@@ -89,7 +115,7 @@ const VERDICTS_B = [
       linked_consignment: {
         consignment_no: 'CN-9104',
         qty: 300,
-        eta: '2026-08-28',
+        eta: ETA_B,
         status: 'in_transit',
       },
     },
@@ -103,7 +129,7 @@ const RECOMMENDATION_A = {
   reason:
     'No benign explanation survives. TRB-4417 draws 4.52/day and runs out in about 9 days (8 at the fast end), against a vendor lead time of 31 days at the 80th percentile. Nothing confirmed is inbound and no indent is open.',
   what_would_change_my_mind:
-    'Consignment CN-8821 (200 nos) is shown against TRB-4417 with an ETA of 2026-08-27, but the vendor has not confirmed dispatch. If that consignment is confirmed and lands by 2026-08-27, do not raise this indent.',
+    `Consignment CN-8821 (200 nos) is shown against TRB-4417 with an ETA of ${ETA_A}, but the vendor has not confirmed dispatch. If that consignment is confirmed and lands by ${ETA_A}, do not raise this indent.`,
   ruled_out: ['consumption_spike', 'duplicate_indent', 'bom_change'],
   urgency: 'critical',
   indent_qty: 200,
@@ -112,9 +138,9 @@ const RECOMMENDATION_A = {
 const RECOMMENDATION_B = {
   action: 'no_action',
   reason:
-    'BRK-2290 is already on order. Indent IND-2026-0731 is open and consignment CN-9104 (300 nos) is in transit, due 2026-08-28, which is inside the 8-day stockout window. Raising another indent would duplicate stock the works has already bought.',
+    `BRK-2290 is already on order. Indent IND-2026-0731 is open and consignment CN-9104 (300 nos) is in transit, due ${ETA_B}, which is inside the 8-day stockout window. Raising another indent would duplicate stock the works has already bought.`,
   what_would_change_my_mind:
-    'If consignment CN-9104 slips past 2026-08-28 or is short-shipped, this becomes a genuine shortage.',
+    `If consignment CN-9104 slips past ${ETA_B} or is short-shipped, this becomes a genuine shortage.`,
   ruled_out: ['consumption_spike', 'bom_change'],
   urgency: null,
   indent_qty: null,
@@ -135,7 +161,7 @@ const DRAFT_A = {
     body:
       'Dear Meridian Traction Supplies,\n\nPlease supply against indent (allocated on approval):\n\n' +
       '  Part      : TRB-4417\n  Item      : Traction motor brush holder, Type 4\n' +
-      '  Quantity  : 200 nos\n  Needed by : 2026-08-26\n\n' +
+      `  Quantity  : 200 nos\n  Needed by : ${NEEDED_BY}\n\n` +
       'Kindly confirm dispatch and share the consignment number once despatched.\n\nRegards,\nStores\n',
   },
 }
