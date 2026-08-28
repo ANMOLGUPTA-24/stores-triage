@@ -524,3 +524,98 @@ button:disabled {
   padding-top: 10px;
   border-top: 1px solid var(--line);
 }
+
+/* How-a-run-works, shown in the activity column before the first run. */
+.pipeline .body {
+  padding: 14px 16px 16px;
+  overflow: auto;
+}
+.pipeline ol {
+  margin: 0 0 14px;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 10px;
+}
+.pipeline li {
+  display: grid;
+  grid-template-columns: 22px minmax(0, 1fr);
+  gap: 10px;
+  align-items: start;
+}
+.pipeline .n {
+  color: var(--ink-faint);
+  font-size: var(--mono);
+  line-height: 1.45;
+}
+.pipeline .t {
+  display: block;
+  color: var(--ink);
+  font-weight: 600;
+}
+.pipeline .d {
+  display: block;
+  color: var(--ink-dim);
+  line-height: 1.45;
+}
+.pipeline .boundary {
+  border-top: 1px solid var(--line);
+  padding-top: 12px;
+  display: grid;
+  gap: 8px;
+}
+.pipeline .boundary p {
+  margin: 0;
+  color: var(--ink-dim);
+  line-height: 1.45;
+}
+.pipeline .boundary .t {
+  display: inline;
+}
+.pipeline .cta {
+  margin: 14px 0 0;
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+  color: var(--ink);
+}
+
+/* The figures that say why any of this is worth doing. */
+.brief .impact {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+  margin: 0 0 14px;
+  padding: 10px 0;
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+}
+.brief .impact .fig {
+  display: block;
+  color: var(--ink);
+  font-size: var(--display);
+  line-height: 1.2;
+}
+.brief .impact .cap {
+  display: block;
+  color: var(--ink-faint);
+  line-height: 1.35;
+  margin-top: 2px;
+}
+@media (max-width: 900px) {
+  .brief .impact {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.pipeline .source {
+  margin: 8px 0 0;
+  color: var(--ink-faint);
+}
+.pipeline .source a {
+  color: var(--ink-dim);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.pipeline .source a:hover {
+  color: var(--ink);
+}

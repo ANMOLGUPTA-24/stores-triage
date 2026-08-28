@@ -18,6 +18,21 @@ export function Brief() {
           whether it is a <strong>genuine</strong> shortage or a <strong>paper</strong> one.
         </p>
 
+        <div className="impact">
+          <div>
+            <span className="fig">~40 min</span>
+            <span className="cap">for a stores officer to answer this by hand, across three systems</span>
+          </div>
+          <div>
+            <span className="fig">101 s</span>
+            <span className="cap">for the run below, with the working attached</span>
+          </div>
+          <div>
+            <span className="fig">20 / day</span>
+            <span className="cap">alerts one officer gets through</span>
+          </div>
+        </div>
+
         <p>
           The stores officer gets twenty of these a day and about forty minutes
           each, because the evidence lives in three systems that do not talk to

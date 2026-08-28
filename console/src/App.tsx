@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 
 import { ActivityStream } from './components/ActivityStream'
 import { Brief } from './components/Brief'
+import { Pipeline } from './components/Pipeline'
 import { Dossier } from './components/Dossier'
 import { HypothesisBoard } from './components/HypothesisBoard'
 import { RunLog, type RunLogEntry } from './components/RunLog'
@@ -184,6 +185,9 @@ export default function App() {
     [cursor],
   )
 
+  // Nothing has run yet, so the page has to explain itself rather than show
+  // an empty operator console.
+  const idle = state.activity.length === 0 && log.length === 0
   const blocked = isBlocked(state)
   const statusClass = blocked
     ? 'is-blocked'
@@ -218,11 +222,11 @@ export default function App() {
       </header>
 
       <div className="columns">
-        <ActivityStream state={state} />
+        {idle ? <Pipeline /> : <ActivityStream state={state} />}
         <div className="stack">
           <HypothesisBoard state={state} />
           <div className="body" style={{ overflow: 'auto', display: 'grid', gap: 'var(--gap)', alignContent: 'start' }}>
-            {state.activity.length === 0 && log.length === 0 ? (
+            {idle ? (
               // Before the first run this space holds two placeholders that
               // explain nothing. Give a visitor the stakes instead; it is gone
               // as soon as they start a run.
