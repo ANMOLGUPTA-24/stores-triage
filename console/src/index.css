@@ -437,3 +437,16 @@ button:disabled {
   background: #fff;
   display: block;
 }
+
+/* Deliberately neutral. The accent belongs to blocked-on-human and nothing
+   else, so the replay label must not compete with it. */
+.replay {
+  font-size: 0.75rem;
+  letter-spacing: 0.02em;
+  padding: 0.1rem 0.4rem;
+  border: 1px solid var(--line);
+  border-radius: 2px;
+  color: var(--ink-faint);
+  white-space: nowrap;
+  cursor: help;
+}

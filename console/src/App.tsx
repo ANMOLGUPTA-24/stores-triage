@@ -194,6 +194,15 @@ export default function App() {
     <div className="app">
       <header className="topbar">
         <h1>Stores Triage</h1>
+        {/* Say plainly that this is a replay. The surfaces are identical to a
+            live turn because the same reducer drives them, which is exactly why
+            a visitor could otherwise assume an agent is running right now. */}
+        <span
+          className="replay"
+          title="A recorded event stream from a real run, replayed one event at a time. The live agent runs locally against Postgres, an MCP server and a sandbox."
+        >
+          recorded run
+        </span>
         <span className="part mono">{partNo}</span>
         <span className={`status ${statusClass}`}>
           <span className="dot" />
@@ -214,7 +223,11 @@ export default function App() {
           <div className="body" style={{ overflow: 'auto', display: 'grid', gap: 'var(--gap)', alignContent: 'start' }}>
             <Dossier
               state={state}
-              chartUrl={state.projection && partNo === 'TRB-4417' ? '/chart-TRB-4417.png' : undefined}
+              chartUrl={
+                state.projection && partNo === 'TRB-4417'
+                  ? `${import.meta.env.BASE_URL}chart-TRB-4417.png`
+                  : undefined
+              }
               onApprove={() => resume(APPROVED_TAIL)}
               onReject={() => resume(REJECTED_TAIL)}
             />
