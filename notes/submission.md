@@ -1,7 +1,8 @@
 # Submission write-up — Stores Triage
 
-Draft. Numbers are filled from the live runs, not from memory; anything still
-written as ⟨…⟩ has not been measured yet.
+Every number here comes from a live run, not from memory. Both runs have been
+executed end to end against the real harness, the real MCP server over Postgres,
+and a real sandbox.
 
 ---
 
@@ -89,13 +90,40 @@ An approval is only worth something if the human can check it in five seconds.
 
 ## The result that matters
 
-**Run B returns `no_action`** — and the run log records that as an outcome, not
-an error. There is no amber anywhere on the screen and no Approve button,
-because nothing should happen. Most agent demos cannot do this; they are built
-to act, so doing nothing looks like failure.
+Two alerts, indistinguishable from the alert alone — **9.4 days** of stock
+against **9.5**. Both were run live.
 
-Being confidently right that nothing should happen is the harder half of the
-problem, and it is the half that saves the money.
+**Run A — TRB-4417.** Sandbox up in 18s; `analyse.py` pulls the record itself
+and computes 4.48/day, dry in 9.4 days (7.7 at the fast end) against a 29.8-day
+p80 lead time — a 20-day stretch with no stock. Four subagents, four verdicts,
+`raise_indent` recommended. The harness holds the call:
+
+    *** GATE HELD ***    raise_indent{part_no: TRB-4417, qty: 200}
+                         nothing written: no indent, no run-log row
+    approved          -> IND-2026-0732
+    *** SECOND GATE ***  send_vendor_mail{indent_no: IND-2026-0732}
+
+Approving the indent does not pre-approve the mail, and the `indent_no` the
+second gate carries is the one `raise_indent` actually returned.
+
+**Run B — BRK-2290.** One unbroken turn, 101 seconds:
+
+    action    : no_action
+    reason    : BRK-2290 is already on order. Indent IND-2026-0731 is open and
+                consignment CN-9104 (300 nos) is in transit, due 2026-08-30,
+                which is inside the 8-day stockout window. Raising another
+                indent would duplicate stock the works has already bought.
+    ruled out : consumption_spike, bom_change
+    change    : If CN-9104 slips past 2026-08-30 or is short-shipped, this
+                becomes a genuine shortage.
+
+**No gate. No Approve button. No amber anywhere.** Nothing to approve, because
+nothing should happen — and the run log records `no_action` as an outcome, not
+an error. No new indent was raised.
+
+Most agent demos cannot do this; they are built to act, so doing nothing looks
+like failure. Being confidently right that nothing should happen is the harder
+half of the problem, and it is the half that saves the money.
 
 ## Where TrueForge fits
 
@@ -138,9 +166,38 @@ it.
   Moving to a free OpenRouter model is what let a run finish in one turn. Until
   then we drove it as two turns, which the session model supports because the
   verdicts survive a failed turn.
-- **The sandbox has no network**, so `pip install` inside it fails. Fixed by
-  staging wheels on the host and starting the harness with `PIP_NO_INDEX=1
-  PIP_FIND_LINKS=…`.
+- **The local sandbox never had network, and we misdiagnosed it for three
+  days.** The story was "the sandbox is offline, so stage wheels and set
+  `PIP_NO_INDEX`". Both halves were wrong. The harness builds the sandbox's
+  environment from scratch, so those variables never reached it and the
+  wheelhouse was never consulted — and the sandbox is *supposed* to have
+  network, since `pypi.org` is on the harness's own allowlist. The real fault:
+  the sandbox reaches its filtering proxy over a Unix socket in `os.tmpdir()`,
+  while the harness's Linux allow-read list omits `/tmp`. Nothing can connect,
+  so `pip install pydantic` — the first thing a sandbox does — always fails, and
+  skills fail with it because skills require a sandbox. Proved by driving the
+  sandbox runtime's own CLI with the harness's exact filesystem policy:
+  permissive gives HTTP 200, the real policy gives `Proxy CONNECT aborted`, the
+  real policy plus `/tmp` gives 200 again. One variable, no model involved.
+  Worked around without patching the dependency.
+- **Three different "todays".** Postgres and the sandbox run on UTC, the host on
+  IST, and they are on different dates for five and a half hours a day. Every
+  date here is relative to Postgres `CURRENT_DATE`, but the analysis rebuilt its
+  window from the local clock and adjudication compared ETAs against the host's.
+  Since overdue consignments stopped counting as cover, that skew discards cover
+  that is still valid — a demo recorded late in the evening could have flipped
+  Run B into an indent and destroyed the contrast the whole thing rests on.
+  There is one source of truth now.
+- **Which model you pick decides whether the demo works at all.** The
+  deterministic core does not care — `adjudicate` is tested code and Run B
+  passes in CI with no model involved. But the *agent* has to actually follow
+  the skill, and with identical skill text three free models did three different
+  things: `minimax-m3` read `SKILL.md` and the scripts, then followed the
+  procedure exactly; `glm-5-2` was upstream rate-limited within a second;
+  `nemotron-3-ultra` ignored the skill outright — no subagents, no analysis
+  script, no adjudication, just its own numpy script over evidence it had
+  fetched itself. A model-selection finding, not a prompt one, and the argument
+  for keeping the judgment in code.
 - **Qodo found eleven real issues** across two PRs, zero false positives. Two
   would have broken the live run outright: the skill both forbade calling
   `raise_indent` before approval and told the agent to call it, so an obedient
@@ -156,7 +213,7 @@ it.
 
 ## Repo
 
-- ⟨repo URL⟩ — MIT
+- https://github.com/ANMOLGUPTA-24/stores-triage — MIT
 - `notes/devlog.md` — what was built and what broke, every session
 - `notes/trueforge-findings.md` — harness research, including measured context costs
-- 55 Python tests, 32 TypeScript tests
+- 65 Python tests, 32 TypeScript tests
