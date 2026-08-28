@@ -450,3 +450,77 @@ button:disabled {
   white-space: nowrap;
   cursor: help;
 }
+
+/* The brief. Dense and neutral on purpose: it is context for a stranger, not a
+   landing page, and it must not out-shout the console it introduces. */
+.brief .body {
+  padding: 14px 18px 16px;
+  color: var(--ink-dim);
+  line-height: 1.5;
+}
+/* Use the width rather than leaving a column of dead space beside a narrow
+   measure. Two columns also gets the whole brief above the fold, which matters:
+   a visitor who has to scroll to find out what they are looking at will not. */
+.brief .split {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 0 26px;
+  align-items: start;
+}
+@media (max-width: 1100px) {
+  .brief .split {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+.brief p {
+  margin: 0 0 10px;
+}
+.brief .lede {
+  color: var(--ink);
+  font-size: var(--display);
+  line-height: 1.35;
+  margin-bottom: 12px;
+}
+.brief strong {
+  color: var(--ink);
+  font-weight: 600;
+}
+.brief em {
+  font-style: normal;
+  color: var(--ink);
+}
+.brief .costs {
+  margin: 0 0 10px;
+  padding: 8px 0 8px 12px;
+  border-left: 2px solid var(--line-strong);
+}
+.brief .costs dt {
+  color: var(--ink);
+  font-weight: 600;
+}
+.brief .costs dd {
+  margin: 0 0 6px;
+}
+.brief .costs dd:last-child {
+  margin-bottom: 0;
+}
+.brief .how {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 7px;
+}
+.brief .how li {
+  padding-left: 12px;
+  border-left: 1px solid var(--line);
+}
+.brief .how .k {
+  color: var(--ink);
+  font-weight: 600;
+}
+.brief .closing {
+  margin: 12px 0 0;
+  padding-top: 10px;
+  border-top: 1px solid var(--line);
+}

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 
 import { ActivityStream } from './components/ActivityStream'
+import { Brief } from './components/Brief'
 import { Dossier } from './components/Dossier'
 import { HypothesisBoard } from './components/HypothesisBoard'
 import { RunLog, type RunLogEntry } from './components/RunLog'
@@ -221,17 +222,26 @@ export default function App() {
         <div className="stack">
           <HypothesisBoard state={state} />
           <div className="body" style={{ overflow: 'auto', display: 'grid', gap: 'var(--gap)', alignContent: 'start' }}>
-            <Dossier
-              state={state}
-              chartUrl={
-                state.projection && partNo === 'TRB-4417'
-                  ? `${import.meta.env.BASE_URL}chart-TRB-4417.png`
-                  : undefined
-              }
-              onApprove={() => resume(APPROVED_TAIL)}
-              onReject={() => resume(REJECTED_TAIL)}
-            />
-            <RunLog entries={log} />
+            {state.activity.length === 0 && log.length === 0 ? (
+              // Before the first run this space holds two placeholders that
+              // explain nothing. Give a visitor the stakes instead; it is gone
+              // as soon as they start a run.
+              <Brief />
+            ) : (
+              <>
+                <Dossier
+                  state={state}
+                  chartUrl={
+                    state.projection && partNo === 'TRB-4417'
+                      ? `${import.meta.env.BASE_URL}chart-TRB-4417.png`
+                      : undefined
+                  }
+                  onApprove={() => resume(APPROVED_TAIL)}
+                  onReject={() => resume(REJECTED_TAIL)}
+                />
+                <RunLog entries={log} />
+              </>
+            )}
           </div>
         </div>
       </div>
