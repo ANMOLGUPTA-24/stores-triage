@@ -27,10 +27,15 @@ without checking.
 ### 1. Get the record and the numbers, in one sandbox call
 
 ```bash
+SKILL=$(ls -d /opt/tfy/skills/stores-triage 2>/dev/null || echo skills/stores-triage)
 pip install matplotlib --quiet && \
-python /opt/tfy/skills/stores-triage/scripts/analyse.py \
-  --part-no <PART-NO> --days 120 --chart chart.png
+python "$SKILL/scripts/analyse.py" --part-no <PART-NO> --days 120 --chart chart.png
 ```
+
+Run it exactly like that, in one command. The skill is materialised at
+`/opt/tfy/skills/stores-triage` in a remote sandbox but at `skills/stores-triage`
+relative to the working directory in a local one, and hunting for the right path
+costs two model requests out of a daily allowance of twenty.
 
 That is the whole step. The script pulls the part, the consumption log and the
 vendor lead times itself over Code Mode, then computes everything and writes the
