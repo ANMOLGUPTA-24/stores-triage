@@ -57,7 +57,11 @@ export async function startRun(partNo: string, options: LiveOptions): Promise<Li
   })
   // Responses are enveloped as { data: ... }; reading .id off the envelope
   // silently yields undefined and every later call 404s on "session undefined".
-  const sessionId = (created as { data?: { id?: string }; id?: string }).data?.id ?? created.id
+  // Both shapes are read off one cast: narrowing only the first branch left
+  // `created.id` typed against the SDK's envelope, which has no id at all, so
+  // the console did not compile.
+  const envelope = created as { data?: { id?: string }; id?: string }
+  const sessionId = envelope.data?.id ?? envelope.id
   if (!sessionId) throw new Error('TrueForge did not return a session id')
 
   const stream = await tf.sessions.createTurnStream(sessionId, {
