@@ -359,9 +359,18 @@ See [evals/](evals/).
 
 ## Qodo Code Review Evidence
 
-Every substantive change lands through a pull request reviewed by
-[Qodo](https://qodo.ai). Nothing substantive was pushed to `main` — the only
-non-merge commit on `main` is the initial scaffold.
+Every substantive change to the agent, the tool server, the skill, the analysis
+and the adjudication landed through a pull request reviewed by
+[Qodo](https://qodo.ai) — nine of them, PRs #1 to #9.
+
+**One exception, stated plainly.** After the submission was prepared, twelve
+commits were made directly to `main`: eleven touch only `notes/`,
+`scripts/build_demo_video.py` and `.gitignore` — documentation and the tooling
+that renders the demo video — but one, `4090d53`, changed console code
+(`App.tsx`, `fixtures.ts` and a test) to stop the recorded runs showing dates
+that had gone stale. That one should have gone through a PR and did not. The
+review trail below covers the project itself; this note is here because claiming
+otherwise would be worse than the lapse.
 
 **Severity accounting.** Across the reviewed PRs Qodo raised **11 High-severity
 findings** — five on [#3](https://github.com/ANMOLGUPTA-24/stores-triage/pull/3),
