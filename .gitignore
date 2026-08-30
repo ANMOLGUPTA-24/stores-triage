@@ -9,3 +9,7 @@ build/
 .pgdata/
 charts/
 *.local
+
+# Demo video renders — large binaries, rebuilt by scripts/build_demo_video.py
+*.webm
+*.gif
