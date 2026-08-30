@@ -1,115 +1,89 @@
 # Submission form — answers to paste
 
+Plain text, no markdown: Google Forms renders none of it.
+Short on purpose — a judge is reading fifty of these.
+
 ---
 
-## What does your project do?
-*(What problem does your project solve, and who is it for?)*
+## 1. What does your project do?
 
-Stores Triage is for a stores officer at a locomotive works. A spare part drops
-below its reorder level and an alert fires; he then has to answer a question the
-alert cannot — is this real? The evidence lives in three systems that do not talk
-to each other: the consumption log, the open indents, and the consignments in
-transit. He gets twenty of these a day, about forty minutes each, so in practice
-he either raises the indent to be safe or lets it sit.
+A spare part drops below its reorder level at a locomotive works and an alert
+fires. The stores officer then has to answer a question the alert cannot: is this
+real? The evidence sits in three systems that do not talk to each other — the
+consumption log, the open indents, and the consignments in transit — and he gets
+twenty of these a day.
 
-Both mistakes cost. A duplicate indent against stock already in transit means the
-works pays expedite rates on stock it already owns. A missed shortage idles a
+Both mistakes cost. A duplicate indent against stock already in transit means
+paying expedite rates on stock the works already owns. A missed shortage idles a
 locomotive.
 
-The agent triages the alert and either raises the indent and mails the vendor —
-behind a human approval gate — or concludes that nothing should happen, and shows
-its working either way.
+The agent decides which it is, then either raises the indent and mails the vendor
+behind a human approval gate, or concludes nothing should happen — and shows its
+working either way.
 
-The demo is built on two alerts that are indistinguishable from the alert alone:
-9.4 days of stock against 9.5. One is genuine. The other is already covered by an
-open indent and a consignment in transit, and the agent correctly does nothing.
-Most agents cannot do that; they are built to act, so declining looks like
-failure. Being confidently right that nothing should happen is the harder half of
-the problem, and it is the half that saves the money.
+The two demo alerts are indistinguishable from the alert alone: 9.4 days of stock
+against 9.5. One is genuine. The other is already covered, and the agent correctly
+does nothing. That is the harder half of the problem and the half that saves the
+money.
 
 ---
 
-## How did you use TrueForge in your project?
-*(Tell us what your agent does and how TrueForge fits into your project.)*
+## 2. How did you use TrueForge in your project?
 
-TrueForge runs everything about the agent; I did not reimplement any of it. It
-handles the agent loop, the MCP calls, the sandbox, the parallel subagent threads,
-the approval pause, and session persistence.
+TrueForge runs the agent loop, the MCP calls, the sandbox, the parallel subagent
+threads, the approval pause and the session. I reimplemented none of it.
 
-What I brought is the tool server, the procedure and the judgement:
+I brought three things: a real MCP server (12 tools over Postgres, bearer auth,
+destructiveHint on the two irreversible ones), the stores-triage skill with the
+analysis code that runs in the sandbox, and adjudicate() — four ordered rules in
+ordinary Python with unit tests. The agent gathers evidence and calls tools; it
+does not get a vote on the answer.
 
-- **stores-mcp** — 12 tools over a real Postgres, remote HTTP with bearer auth.
-  `raise_indent` and `send_vendor_mail` carry `destructiveHint`, so the harness
-  holds them.
-- **The `stores-triage` skill** — the procedure, git-backed and materialised into
-  the sandbox, plus the analysis script that runs there.
-- **adjudicate()** — four ordered rules in ordinary Python with unit tests. The
-  agent gathers evidence and calls tools; it does not get a vote on the answer.
+A run: four subagents dispatched at once, one per competing explanation, each
+trying to prove the shortage is NOT real. analyse.py runs in the sandbox and pulls
+its own record over Code Mode, so the data never passes through the model. Then
+adjudicate decides, and the harness holds raise_indent for a human — and holds
+send_vendor_mail again, separately, after approval.
 
-All five capabilities the Best-Use criterion names are demonstrated:
+Two settings that mattered. requireApprovalForTools is narrowed to the two
+irreversible tools; the default would also hold log_run, so the agent would wait
+for permission to record that it had decided to do nothing. And askUserQuestions
+is disabled — left on, the agent reached the right answer and then asked for
+permission in prose, with no evidence and no held call to gate. That is the
+confirm() box this project exists to replace.
 
-| | where |
-|---|---|
-| Real tools through MCP | 12 tools over Postgres |
-| Generated code in a sandbox | `analyse.py` under bubblewrap; it installs pydantic and matplotlib from pypi itself and pulls its own record over Code Mode, so the data never passes through the model |
-| A pause before anything irreversible | `raise_indent` held, then `send_vendor_mail` held **separately** after approval |
-| Work handed to subagents | four hypothesis subagents in parallel, one tool call each |
-| A session that holds across reconnects | proved the hard way — a turn died mid-run on a rate limit and the session kept its four verdicts, so the rest was driven as a second turn and reached the gate |
-
-Two configuration choices carry real design weight.
-`requireApprovalForTools` is narrowed to exactly the two irreversible tools; the
-default would also hold `log_run`, so the agent would wait for permission to
-record that it had decided to do nothing, and a gate that fires on everything
-trains the operator to click through it. And `askUserQuestions` is **disabled** —
-left on, the agent reached the right decision and then asked for permission in
-prose, with no evidence, no payload and no held call for the harness to gate.
-That is the confirm() box this project exists to replace, so the only route to a
-human is now calling the gated tool.
-
-Both runs have been executed live: TRB-4417 holds at both gates (IND-2026-0732
-raised on approval), BRK-2290 returns `no_action` in one unbroken 101-second turn.
+Both runs are live. TRB-4417 holds at both gates. BRK-2290 returns no_action in
+one unbroken 101-second turn. A third run died mid-way on a rate limit and the
+session came back with its four verdicts intact.
 
 ---
 
-## How did you use Qodo in your project?
-*(Tell us how you used Qodo and how it improved the quality of your code.)*
+## 3. How did you use Qodo in your project?
 
-Every substantive change went through a pull request reviewed by Qodo before
-merge — nine PRs. The only non-merge commit on `main` is the initial scaffold.
+Every substantive change went through a reviewed pull request — nine of them. The
+only non-merge commit on main is the initial scaffold.
 
-Qodo raised **11 High-severity findings** (five on #3, five on #4, one on #7) and
-**every one was fixed**; none was dismissed. Two would have broken the live demo
-outright:
+Qodo raised 11 High-severity findings across three PRs and every one was fixed;
+none dismissed. Two would have broken the demo outright. "Approval gate cannot
+start": the skill both forbade calling raise_indent before approval and told the
+agent to call it, so an obedient agent would never create anything to approve.
+"Gate instructions deadlock agent": three places still said never to call the
+gated tools until a human approved, which means waiting forever for an approval
+nothing was ever held for.
 
-- **"Approval gate cannot start."** The skill both forbade calling `raise_indent`
-  before approval *and* told the agent to call it so the harness would hold it. An
-  obedient agent never creates anything to approve — the demo's central beat could
-  not have fired.
-- **"Gate instructions deadlock agent."** After I disabled the question tool, three
-  places still said never to call the gated tools until a human had approved.
-  Together that is a trap: present the dossier, wait for an approval that cannot
-  exist, stop.
-
-Three were arithmetic errors that would have put wrong numbers in front of an
-operator: the stockout band solved with the p20/p80 cutoff while calling itself
-p10/p90; consumption rows counted as days although the schema allows several
-issues per date; and a zero-stock part dividing by a zero median, crashing on the
-most urgent alert there is.
-
-It also caught a defect in one of my own fixes, and a font size outside the type
-tokens — which I fixed and widened, because patching only the flagged line would
-have left six more the same commit had introduced.
+Three more were arithmetic that would have put wrong numbers in front of an
+operator — a p20 cutoff labelled p10, consumption rows counted as days, and a
+divide-by-zero that crashed on the most urgent alert there is.
 
 I disagreed with exactly one Medium finding and wrote the reasoning on the PR
-rather than silently ignoring it.
+rather than ignoring it.
 
-The habit it forced — small PRs, a review, a decision, a follow-up review —
-is why the repo has 70 Python and 32 TypeScript tests plus an evaluation harness
-that scores the adjudicator 16/16 on labelled scenarios and proves it has teeth by
-breaking its own rules and checking it notices.
+The habit it forced is why the repo has 70 Python and 32 TypeScript tests plus an
+evaluation that scores the adjudicator 16/16 on labelled cases — and proves the
+suite has teeth by breaking the rules on purpose and checking it notices.
 
 ---
 
 ## Blog link
 
-Publish `notes/blog-post.md` anywhere (dev.to, Hashnode, Medium) and paste the URL.
+Publish notes/blog-post.md anywhere and paste the URL.
