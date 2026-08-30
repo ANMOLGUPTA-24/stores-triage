@@ -75,10 +75,10 @@ Every item below advances a beat in CLAUDE.md §0b. Anything that doesn't, isn't
 - [x] **Captured: first Run B "no action"** (session 01m14fhwjwt2zvw7rnrfkxwhxh)
 
 ## Day 5 — Sun 30 Aug — ship
-- [ ] Cut the ~3 min video: problem → agent working → where the harness fits
-- [ ] Write-up from `notes/devlog.md`
-- [ ] Redaction check: no keys, no real names, no personal data in any frame
-- [ ] **Submit Sunday morning**, not Sunday night
+- [x] Cut the ~3 min video: problem → agent working → where the harness fits
+- [x] Write-up from `notes/devlog.md`
+- [x] Redaction check: no keys, no real names, no personal data in any frame
+- [x] **Submitted** — Sat 29 Aug, a day and a half before the deadline
 
 ## Review
 _(filled in as things land)_
@@ -88,6 +88,12 @@ _(filled in as things land)_
 - [x] Clean clone verified: 65 Python + 32 TS tests, production build, no .env,
       no key-shaped strings, every path the README names exists
 - [x] Console published as a replayable page for judges
-- [ ] **Record the video** — re-seed first, the database holds IND-2026-0732 and
-      one run_log row from the live runs
-- [ ] Submit
+- [x] **Video recorded** — 3:21, neural narration, both runs including the
+      dossier payload and both gates
+- [x] Submitted
+
+## Submitted — Sat 29 Aug 2026
+
+Repo, video, write-up and all form answers in. Blog post drafted at
+notes/blog-post.md and still unpublished; publishing it and pasting the link is
+the only thing left, and it is optional.
