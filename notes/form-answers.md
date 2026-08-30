@@ -87,3 +87,81 @@ suite has teeth by breaking the rules on purpose and checking it notices.
 ## Blog link
 
 Publish notes/blog-post.md anywhere and paste the URL.
+
+---
+
+## 4. Which TrueForge feature was the most useful, and why?
+
+The approval pause, by a distance — because it is the one thing I would have got
+subtly wrong on my own.
+
+Marking a tool destructiveHint and naming it in requireApprovalForTools is all it
+takes: the harness intercepts the call, holds it, and shows the operator a pending
+action. Nothing is written while it waits. The part I did not appreciate until I
+used it is that approving RESUMES the call the agent already made rather than
+asking the agent to make it again. A hand-rolled version would almost certainly
+have re-issued it and raised two indents.
+
+Dynamic subagents are a close second. Four hypotheses investigating in parallel,
+each with its own threadId in the event stream, is what makes the reasoning
+legible on screen instead of being a wall of prose.
+
+---
+
+## 5. Where did you get stuck, and what would you improve about the developer experience?
+
+The local sandbox on Linux cannot reach the network, and the error tells you the
+wrong story. It surfaces as "Failed to pip install pydantic", which sends you
+looking for an offline-wheels workaround. That is not the problem. SRT reaches its
+filtering proxy over a Unix socket at os.tmpdir()/claude-http-<id>.sock, but
+ALLOW_READ_BY_PLATFORM.linux does not include /tmp — so the sandboxed process
+cannot see the socket and every connection dies with "Proxy CONNECT aborted", even
+though pypi.org is on your own allowed-domain list. On Linux this makes the local
+sandbox unusable, and it takes skills with it, because skills require a sandbox.
+It cost me three days. Adding /tmp, or putting the socket somewhere already
+allow-read, fixes it.
+
+Three smaller ones. The sandbox child environment is built from scratch, so
+PIP_NO_INDEX and PIP_FIND_LINKS set on the harness process silently never arrive.
+There is no backoff on a 429 — four subagents dispatching at once is eight
+requests in ten seconds, and on a per-minute cap that kills the whole turn; the
+session surviving is excellent, but the turn should be able to wait. And skills
+materialise at /opt/tfy/skills/<name> remotely but relative to the working
+directory locally, with no documented way to ask which.
+
+One default I would change: ask_user_questions is on by default, and it quietly
+defeats approval gating. My agent reached the correct decision and then asked for
+permission in prose — no evidence, no payload, and no held call for the harness to
+gate. If an agent has gated tools, that tool should probably be off.
+
+---
+
+## 6. How useful was Qodo's code review feedback?  →  5 stars
+
+---
+
+## 7. What was the most useful or frustrating part of working with Qodo, and what would you change?
+
+Most useful: it reviewed my prose, not just my code. Two of its findings were
+logical contradictions inside the agent's instruction file — one where the skill
+both forbade calling a tool and told the agent to call it, another where three
+separate places deadlocked the approval gate. Neither is a code defect any linter
+or type checker would ever see, and both would have broken the live demo. I did
+not expect a code reviewer to catch that.
+
+Also worth saying: 11 High-severity findings and zero false positives. Nothing was
+noise, so I never learned to skim it.
+
+What I would change: findings are reported per instance rather than per class. It
+flagged one hard-coded font size outside my type tokens — correct — while the same
+commit had introduced six more of exactly the same violation. Fixing only what was
+flagged would have satisfied the review while the actual problem grew. Something
+like "this pattern occurs 7 times in this diff" would have pointed me at the class
+instead of the symptom.
+
+The rule-violation checks derived from my own project constitution were the most
+valuable and the most literal. One flagged my GitHub username in a Pages URL as
+exposed personal data, which is not removable — GitHub derives the URL from the
+account. I replied on the PR rather than complying, which is the right escape
+hatch, but a way to mark a rule as "does not apply to generated URLs" would save
+that round trip.
